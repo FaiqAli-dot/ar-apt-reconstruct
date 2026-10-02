@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --viewra-ink: #07080a;
+  --viewra-mist: #e8ebe8;
+  --viewra-brass: #c4a574;
+  --crossfade-ms: 480ms;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(196, 165, 116, 0.08), transparent 55%),
+    radial-gradient(90% 60% at 100% 100%, rgba(40, 52, 48, 0.35), transparent 50%),
+    var(--viewra-ink);
+  font-family: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --crossfade-ms: 0ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

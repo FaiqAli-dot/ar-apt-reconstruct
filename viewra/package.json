@@ -11,7 +11,7 @@
     "dev:worker": "pnpm --filter @viewra/worker dev",
     "dev:admin": "pnpm --filter @viewra/admin dev",
     "dev:viewer": "pnpm --filter @viewra/viewer dev",
-    "test": "pnpm -r --filter=./services/* --filter=./packages/* test",
+    "test": "pnpm -r --filter=./services/* --filter=./packages/* --filter=./apps/* test",
     "test:api": "pnpm --filter @viewra/api test",
     "test:worker": "pnpm --filter @viewra/worker test",
     "typecheck": "pnpm -r typecheck",
