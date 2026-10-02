@@ -9,6 +9,7 @@ public enum ValidationIssueCode: String, Codable, Sendable, Hashable {
     case missingPhoto = "MISSING_PHOTO"
     case darkImage = "DARK_IMAGE"
     case blurryImage = "BLURRY_IMAGE"
+    case duplicateCapture = "DUPLICATE_CAPTURE"
     case incompleteCapture = "INCOMPLETE_CAPTURE"
 }
 
@@ -74,28 +75,32 @@ public struct CaptureValidationResult: Codable, Sendable, Hashable {
     }
 }
 
-/// Stub quality signals used for dark/blur warnings (platform fills these in).
-public struct PhotoQualityStub: Codable, Sendable, Hashable {
+/// Per-direction quality metrics from capture preview (RGBA) or platform bridge.
+public struct PhotoQualitySample: Codable, Sendable, Hashable {
     public var direction: PhotoDirection
-    public var isDark: Bool
-    public var isBlurry: Bool
+    public var metrics: PhotoQualityMetrics
+    public var isDuplicate: Bool
 
-    public init(direction: PhotoDirection, isDark: Bool = false, isBlurry: Bool = false) {
+    public init(
+        direction: PhotoDirection,
+        metrics: PhotoQualityMetrics,
+        isDuplicate: Bool = false
+    ) {
         self.direction = direction
-        self.isDark = isDark
-        self.isBlurry = isBlurry
+        self.metrics = metrics
+        self.isDuplicate = isDuplicate
     }
 }
 
-/// Validates required photos and quality stubs for a capture node.
+/// Validates required photos and quality metrics for a capture node.
 public struct CaptureValidator: Sendable {
     public init() {}
 
-    /// Validates that all required directions are present and applies quality stubs.
+    /// Validates that all required directions are present and applies quality warnings.
     public func validate(
         nodeId: String,
         completedPhotos: Set<PhotoDirection>,
-        qualityStubs: [PhotoQualityStub] = [],
+        qualitySamples: [PhotoQualitySample] = [],
         overriddenWarningIds: Set<String> = []
     ) -> CaptureValidationResult {
         var issues: [ValidationIssue] = []
@@ -127,31 +132,44 @@ public struct CaptureValidator: Sendable {
             )
         }
 
-        for stub in qualityStubs {
-            guard completedPhotos.contains(stub.direction) else { continue }
-            if stub.isDark {
+        for sample in qualitySamples {
+            guard completedPhotos.contains(sample.direction) else { continue }
+            if sample.metrics.meanLuminance < ImageQualityAnalyzer.darkLuminanceThreshold {
                 let issue = ValidationIssue(
-                    id: "dark-\(nodeId)-\(stub.direction.rawValue)",
+                    id: "dark-\(nodeId)-\(sample.direction.rawValue)",
                     code: .darkImage,
                     severity: .warning,
-                    message: "\(stub.direction.rawValue) photo appears dark",
+                    message: "\(sample.direction.rawValue) photo appears dark",
                     nodeId: nodeId,
-                    direction: stub.direction,
+                    direction: sample.direction,
                     canUseAnyway: true,
-                    usedAnyway: overriddenWarningIds.contains("dark-\(nodeId)-\(stub.direction.rawValue)")
+                    usedAnyway: overriddenWarningIds.contains("dark-\(nodeId)-\(sample.direction.rawValue)")
                 )
                 issues.append(issue)
             }
-            if stub.isBlurry {
+            if sample.metrics.laplacianVariance < ImageQualityAnalyzer.blurLaplacianThreshold {
                 let issue = ValidationIssue(
-                    id: "blur-\(nodeId)-\(stub.direction.rawValue)",
+                    id: "blur-\(nodeId)-\(sample.direction.rawValue)",
                     code: .blurryImage,
                     severity: .warning,
-                    message: "\(stub.direction.rawValue) photo appears blurry",
+                    message: "\(sample.direction.rawValue) photo appears blurry",
                     nodeId: nodeId,
-                    direction: stub.direction,
+                    direction: sample.direction,
                     canUseAnyway: true,
-                    usedAnyway: overriddenWarningIds.contains("blur-\(nodeId)-\(stub.direction.rawValue)")
+                    usedAnyway: overriddenWarningIds.contains("blur-\(nodeId)-\(sample.direction.rawValue)")
+                )
+                issues.append(issue)
+            }
+            if sample.isDuplicate {
+                let issue = ValidationIssue(
+                    id: "dup-\(nodeId)-\(sample.direction.rawValue)",
+                    code: .duplicateCapture,
+                    severity: .warning,
+                    message: "\(sample.direction.rawValue) photo may be a duplicate",
+                    nodeId: nodeId,
+                    direction: sample.direction,
+                    canUseAnyway: true,
+                    usedAnyway: overriddenWarningIds.contains("dup-\(nodeId)-\(sample.direction.rawValue)")
                 )
                 issues.append(issue)
             }

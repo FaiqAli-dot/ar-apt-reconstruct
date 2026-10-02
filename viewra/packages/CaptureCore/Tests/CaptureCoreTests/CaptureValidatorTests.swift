@@ -7,7 +7,7 @@ final class CaptureValidatorTests: XCTestCase {
         let result = validator.validate(
             nodeId: "N1",
             completedPhotos: [.left],
-            qualityStubs: []
+            qualitySamples: []
         )
         XCTAssertFalse(result.isComplete)
         XCTAssertFalse(result.isAcceptable)
@@ -19,14 +19,20 @@ final class CaptureValidatorTests: XCTestCase {
 
     func testCompleteCaptureWithDarkBlurWarningsAndUseAnyway() {
         let validator = CaptureValidator()
-        let stubs = [
-            PhotoQualityStub(direction: .left, isDark: true),
-            PhotoQualityStub(direction: .center, isBlurry: true),
+        let samples = [
+            PhotoQualitySample(
+                direction: .left,
+                metrics: PhotoQualityMetrics(meanLuminance: 10, laplacianVariance: 200)
+            ),
+            PhotoQualitySample(
+                direction: .center,
+                metrics: PhotoQualityMetrics(meanLuminance: 120, laplacianVariance: 5)
+            ),
         ]
         var result = validator.validate(
             nodeId: "N2",
             completedPhotos: [.left, .center, .right],
-            qualityStubs: stubs
+            qualitySamples: samples
         )
         XCTAssertTrue(result.isComplete)
         XCTAssertTrue(result.isAcceptable)
@@ -41,6 +47,19 @@ final class CaptureValidatorTests: XCTestCase {
         let blurId = "blur-N2-CENTER"
         result = validator.useAnyway(issueId: blurId, in: result)
         XCTAssertTrue(result.issues.first { $0.id == blurId }?.usedAnyway == true)
+    }
+
+    func testImageQualityAnalyzerDetectsDarkRGBA() {
+        var bytes: [UInt8] = []
+        for _ in 0..<(8 * 8) {
+            bytes.append(5)
+            bytes.append(5)
+            bytes.append(5)
+            bytes.append(255)
+        }
+        let metrics = ImageQualityAnalyzer.analyzeRGBA(width: 8, height: 8, bytes: bytes)
+        XCTAssertNotNil(metrics)
+        XCTAssertLessThan(metrics!.meanLuminance, ImageQualityAnalyzer.darkLuminanceThreshold)
     }
 
     func testSessionPhotoProgress() {

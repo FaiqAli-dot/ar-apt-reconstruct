@@ -86,7 +86,8 @@ export function MapOverlay({
               }`}
               style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
               aria-current={current ? "true" : undefined}
-              data-testid={`map-node-${node.id}`}
+              data-testid={`map-node-label-${node.label.replace(/[^a-zA-Z0-9]+/g, "-")}`}
+              data-node-id={node.id}
               data-current={current ? "true" : "false"}
               onClick={() => onJump(node.id)}
             >
@@ -110,7 +111,8 @@ export function MapOverlay({
                     ? "bg-white/10 text-mist-100"
                     : "text-mist-300 hover:bg-white/5 hover:text-mist-100"
                 }`}
-                data-testid={`map-list-${node.id}`}
+                data-testid={`map-list-label-${node.label.replace(/[^a-zA-Z0-9]+/g, "-")}`}
+                data-node-id={node.id}
                 onClick={() => onJump(node.id)}
               >
                 <span>{displayLabel(node)}</span>

@@ -18,7 +18,6 @@ viewra/
 │   ├── shared/         # Graph validation, slugs, storage keys
 │   ├── config/         # Shared tsconfig bases
 │   ├── CaptureCore/    # Swift package — graph, validation, offline upload queue
-│   └── ui/             # Stub; admin/viewer keep local components for now
 ├── infrastructure/     # docker-compose (dev + prod) and Dockerfiles
 ├── scripts/            # Dev helpers
 └── docs/               # Architecture, database, API, capture, deployment
@@ -75,7 +74,7 @@ cp apps/viewer/.env.example apps/viewer/.env
 pnpm seed
 ```
 
-Creates a demo organization, admin, capture operator, and a sample property graph with placeholder photos.
+Creates a demo organization, admin, capture operator, a published **Demo Apartment**, and dedicated E2E tours (`AcceptE2E01` acceptance graph, draft/archived fixtures).
 
 | Role | Email | Password (from `.env.example`) |
 |------|-------|--------------------------------|
@@ -114,10 +113,11 @@ See [apps/capture/README.md](./apps/capture/README.md) and [docs/capture-workflo
 ## Tests
 
 ```bash
-pnpm test              # all packages / services / apps with tests
+pnpm test              # unit + integration (Mongo memory + MinIO where applicable)
 pnpm test:api          # API integration tests
-pnpm test:worker       # Worker integration tests
+pnpm test:worker       # Worker integration + image quality tests
 pnpm --filter @viewra/viewer test
+pnpm test:e2e          # Playwright browser E2E (acceptance graph N1–N8)
 cd packages/CaptureCore && swift test
 ```
 

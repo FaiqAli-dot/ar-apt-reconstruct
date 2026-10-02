@@ -186,6 +186,22 @@ export function PhotoManager({ nodeId, photos, onChanged }: Props) {
                   </>
                 ) : null}
               </div>
+              {photo?.metadata?.warnings?.length ? (
+                <ul className="mt-2 space-y-1 text-xs text-amber-800">
+                  {photo.metadata.warnings.map((code) => (
+                    <li key={code} className="rounded-md bg-amber-100/80 px-2 py-1">
+                      Quality warning: {code.replace(/_/g, " ").toLowerCase()}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {photo?.metadata?.quality ? (
+                <p className="mt-1 text-[10px] text-ink-muted">
+                  Luminance {photo.metadata.quality.meanLuminance?.toFixed(0) ?? "—"}
+                  · sharpness{" "}
+                  {photo.metadata.quality.laplacianVariance?.toFixed(0) ?? "—"}
+                </p>
+              ) : null}
               {photo?.processingError ? (
                 <p className="mt-2 text-xs text-danger">
                   {photo.processingError}

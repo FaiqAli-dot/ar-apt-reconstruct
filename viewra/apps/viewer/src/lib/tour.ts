@@ -8,6 +8,14 @@ export function sortNodes(nodes: TourNode[]): TourNode[] {
 }
 
 export function pickStartNode(nodes: TourNode[]): TourNode | null {
+  const n1 = nodes.find((node) => node.label === "N1");
+  if (n1) return n1;
+  const entrance = nodes.find(
+    (node) =>
+      node.label.toLowerCase() === "entrance" ||
+      node.roomName?.toLowerCase() === "entrance",
+  );
+  if (entrance) return entrance;
   const sorted = sortNodes(nodes);
   return sorted[0] ?? null;
 }

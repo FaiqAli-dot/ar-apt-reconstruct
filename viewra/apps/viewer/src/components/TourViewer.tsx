@@ -44,6 +44,9 @@ export function TourViewer({ tour, publicId }: TourViewerProps) {
   );
 
   const centerPhoto = getCenterPhoto(currentNode);
+  const photoSources = centerPhoto
+    ? { webpUrl: centerPhoto.url, avifUrl: centerPhoto.avifUrl }
+    : null;
   const label = currentNode ? displayLabel(currentNode) : "";
 
   useEffect(() => {
@@ -56,7 +59,7 @@ export function TourViewer({ tour, publicId }: TourViewerProps) {
   }, [currentNode, trackNodeView]);
 
   useEffect(() => {
-    const id = window.setTimeout(() => setShowBrand(false), 1600);
+    const id = window.setTimeout(() => setShowBrand(false), 900);
     return () => window.clearTimeout(id);
   }, []);
 
@@ -87,7 +90,7 @@ export function TourViewer({ tour, publicId }: TourViewerProps) {
   return (
     <main className="relative h-[100dvh] w-full overflow-hidden bg-ink-950" data-testid="tour-viewer">
       <PhotoStage
-        url={centerPhoto?.url ?? null}
+        sources={photoSources}
         alt={`${tour.property.title} — ${label}`}
         emptyLabel={label}
       />
@@ -115,8 +118,8 @@ export function TourViewer({ tour, publicId }: TourViewerProps) {
       </div>
 
       <div
-        className={`pointer-events-none absolute inset-0 z-[60] flex items-center justify-center bg-ink-950/55 transition-opacity duration-700 ${
-          showBrand ? "opacity-100" : "opacity-0"
+        className={`pointer-events-none absolute inset-0 z-[25] flex items-center justify-center bg-ink-950/55 transition-opacity duration-500 ${
+          showBrand ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         aria-hidden={!showBrand}
         data-testid="entry-brand"

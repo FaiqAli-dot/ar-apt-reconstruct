@@ -1,4 +1,9 @@
-import { Schema, model, type InferSchemaType, type Types } from "mongoose";
+import {
+  Schema,
+  model,
+  type HydratedDocument,
+  type InferSchemaType,
+} from "mongoose";
 import { PropertyStatus } from "@viewra/types";
 
 const addressSchema = new Schema(
@@ -40,8 +45,8 @@ const propertySchema = new Schema(
 
 propertySchema.index({ organizationId: 1, slug: 1 }, { unique: true });
 
-export type PropertyDocument = InferSchemaType<typeof propertySchema> & {
-  _id: Types.ObjectId;
-};
+export type PropertyDocument = HydratedDocument<
+  InferSchemaType<typeof propertySchema>
+>;
 
 export const PropertyModel = model("Property", propertySchema);

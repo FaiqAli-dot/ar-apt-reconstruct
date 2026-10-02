@@ -103,7 +103,7 @@ describe("TourPage", () => {
       ).toBe(true);
     });
 
-    await user.click(screen.getByTestId("map-node-node-hall"));
+    await user.click(screen.getByTestId("map-node-label-Hall"));
 
     await waitFor(() => {
       expect(screen.queryByTestId("map-overlay")).not.toBeInTheDocument();
@@ -128,7 +128,7 @@ describe("TourPage", () => {
     await screen.findByTestId("tour-viewer");
 
     await user.click(screen.getByTestId("map-button"));
-    await user.click(screen.getByTestId("map-list-node-hall"));
+    await user.click(screen.getByTestId("map-list-label-Hall"));
 
     expect(await screen.findByTestId("empty-photo")).toBeInTheDocument();
     expect(screen.getByText(/center view is not available/i)).toBeInTheDocument();

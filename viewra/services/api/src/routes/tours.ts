@@ -72,6 +72,9 @@ export async function tourRoutes(app: FastifyInstance) {
           url: await app.storage.resolveReadUrl(
             p.processedKey ?? p.originalKey,
           ),
+          avifUrl: p.avifKey
+            ? await app.storage.resolveReadUrl(p.avifKey)
+            : null,
           thumbnailUrl: await app.storage.resolveReadUrl(p.thumbnailKey),
           width: p.width,
           height: p.height,

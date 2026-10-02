@@ -21,13 +21,14 @@ export function createS3Client(config: WorkerConfig): S3Client {
 /** Derive processed/thumbnail object keys from an original key path. */
 export function deriveVariantKeys(originalKey: string): {
   processedKey: string;
+  processedAvifKey: string;
   thumbnailKey: string;
 } {
   if (!originalKey.includes("/original/")) {
     throw new Error(`Invalid original key (missing /original/): ${originalKey}`);
   }
 
-  const replaceKind = (kind: "processed" | "thumbnail") => {
+  const replaceKind = (kind: "processed" | "thumbnail", ext: "webp" | "avif") => {
     const withKind = originalKey.replace("/original/", `/${kind}/`);
     const lastSlash = withKind.lastIndexOf("/");
     const dir = withKind.slice(0, lastSlash + 1);
@@ -35,12 +36,13 @@ export function deriveVariantKeys(originalKey: string): {
     const base = filename.includes(".")
       ? filename.slice(0, filename.lastIndexOf("."))
       : filename;
-    return `${dir}${base}.webp`;
+    return `${dir}${base}.${ext}`;
   };
 
   return {
-    processedKey: replaceKind("processed"),
-    thumbnailKey: replaceKind("thumbnail"),
+    processedKey: replaceKind("processed", "webp"),
+    processedAvifKey: replaceKind("processed", "avif"),
+    thumbnailKey: replaceKind("thumbnail", "webp"),
   };
 }
 

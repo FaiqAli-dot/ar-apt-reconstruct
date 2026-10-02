@@ -67,8 +67,8 @@ Tenant scoping: non–super-admin users only see resources in their `organizatio
 |--------|------|------|-------------|
 | `GET` | `/api/properties` | Any auth | Paginated list (`page`, `limit` query) |
 | `POST` | `/api/properties` | Any auth | Create property `{ title, slug?, address?, description? }` → `DRAFT` |
-| `GET` | `/api/properties/:id` | Any auth | Get property |
-| `PATCH` | `/api/properties/:id` | Any auth | Update title/slug/address/description/status/coverPhotoId (`publicId` immutable) |
+| `GET` | `/api/properties/:id` | Any auth | Get property by MongoDB id, **slug**, or `publicId` (org-scoped) |
+| `PATCH` | `/api/properties/:id` | Any auth | Update property (same ref resolution as GET) |
 | `DELETE` | `/api/properties/:id` | Any auth | Cascade-delete rooms, nodes, photos, connections, jobs, analytics |
 
 ---

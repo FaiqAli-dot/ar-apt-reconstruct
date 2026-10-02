@@ -30,6 +30,7 @@ describe("worker processJob integration", () => {
   it("deriveVariantKeys replaces /original/ and switches ext to webp", () => {
     expect(deriveVariantKeys("org1/prop1/original/photo123.jpg")).toEqual({
       processedKey: "org1/prop1/processed/photo123.webp",
+      processedAvifKey: "org1/prop1/processed/photo123.avif",
       thumbnailKey: "org1/prop1/thumbnail/photo123.webp",
     });
   });
@@ -83,7 +84,10 @@ describe("worker processJob integration", () => {
     expect(updatedPhoto!.processingStatus).toBe(ProcessingStatus.READY);
     expect(updatedPhoto!.mimeType).toBe("image/webp");
     expect(updatedPhoto!.processedKey).toContain("/processed/");
+    expect(updatedPhoto!.avifKey).toContain("/processed/");
+    expect(updatedPhoto!.avifKey).toMatch(/\.avif$/);
     expect(updatedPhoto!.thumbnailKey).toContain("/thumbnail/");
+    expect(updatedPhoto!.metadata?.quality?.perceptualHash).toBeTruthy();
     expect(updatedPhoto!.width).toBe(1200);
     expect(updatedPhoto!.height).toBe(800);
     expect(updatedPhoto!.processingError).toBeNull();
@@ -93,6 +97,7 @@ describe("worker processJob integration", () => {
     expect(updatedJob!.lastError).toBeNull();
 
     expect(await storage.objectExists(updatedPhoto!.processedKey!)).toBe(true);
+    expect(await storage.objectExists(updatedPhoto!.avifKey!)).toBe(true);
     expect(await storage.objectExists(updatedPhoto!.thumbnailKey!)).toBe(true);
   });
 

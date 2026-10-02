@@ -1,43 +1,19 @@
 import type { FastifyReply } from "fastify";
 import { Types } from "mongoose";
-import { UserRole } from "@viewra/types";
 import type { AuthUser } from "../plugins/auth.js";
-import { PropertyModel } from "../models/Property.js";
 import { RoomModel } from "../models/Room.js";
 import { NodeModel } from "../models/Node.js";
 import { PhotoModel } from "../models/Photo.js";
 import { ConnectionModel } from "../models/Connection.js";
 import { isMongoId } from "../utils/validation.js";
+import { findOrgPropertyRef } from "../utils/resolve-property.js";
 
 export async function findOrgProperty(
   user: AuthUser,
-  propertyId: string,
+  propertyRef: string,
   reply: FastifyReply,
 ) {
-  if (!isMongoId(propertyId)) {
-    await reply.status(404).send({
-      statusCode: 404,
-      error: "Not Found",
-      message: "Property not found",
-    });
-    return null;
-  }
-
-  const filter: Record<string, unknown> = { _id: propertyId };
-  if (user.role !== UserRole.SUPER_ADMIN) {
-    filter.organizationId = user.organizationId;
-  }
-
-  const property = await PropertyModel.findOne(filter);
-  if (!property) {
-    await reply.status(404).send({
-      statusCode: 404,
-      error: "Not Found",
-      message: "Property not found",
-    });
-    return null;
-  }
-  return property;
+  return findOrgPropertyRef(user, propertyRef, reply);
 }
 
 export async function findOrgRoom(

@@ -100,11 +100,18 @@ export const nodeSchema = z.object({
 });
 export type Node = z.infer<typeof nodeSchema>;
 
+export const photoQualitySchema = z.object({
+  meanLuminance: z.number().optional(),
+  laplacianVariance: z.number().optional(),
+  perceptualHash: z.string().optional(),
+});
+
 export const photoMetadataSchema = z.object({
   exifOrientation: z.number().optional(),
   originalFilename: z.string().optional(),
   capturedAt: z.string().datetime().optional(),
   warnings: z.array(z.string()).optional(),
+  quality: photoQualitySchema.optional(),
 });
 
 export const photoSchema = z.object({
@@ -114,6 +121,7 @@ export const photoSchema = z.object({
   direction: photoDirectionSchema,
   originalKey: z.string().nullable().optional(),
   processedKey: z.string().nullable().optional(),
+  avifKey: z.string().nullable().optional(),
   thumbnailKey: z.string().nullable().optional(),
   width: z.number().int().positive().nullable().optional(),
   height: z.number().int().positive().nullable().optional(),

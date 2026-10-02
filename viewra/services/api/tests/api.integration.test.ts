@@ -204,6 +204,22 @@ describe("property rooms nodes CRUD", () => {
       headers: authHeader(ctx.adminA.token),
     });
     expect(listNodes.json().items).toHaveLength(1);
+
+    const bySlug = await ctx.app.inject({
+      method: "GET",
+      url: "/api/properties/crud-home",
+      headers: authHeader(ctx.adminA.token),
+    });
+    expect(bySlug.statusCode).toBe(200);
+    expect(bySlug.json().id).toBe(property.id);
+
+    const graphBySlug = await ctx.app.inject({
+      method: "GET",
+      url: "/api/properties/crud-home/graph",
+      headers: authHeader(ctx.adminA.token),
+    });
+    expect(graphBySlug.statusCode).toBe(200);
+    expect(graphBySlug.json().nodes).toHaveLength(1);
   });
 });
 

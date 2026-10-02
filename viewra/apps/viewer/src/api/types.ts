@@ -12,6 +12,7 @@ export type TourPhoto = {
   id: string;
   direction: PhotoDirection;
   url: string;
+  avifUrl?: string | null;
   thumbnailUrl: string;
   width?: number;
   height?: number;

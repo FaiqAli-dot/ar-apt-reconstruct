@@ -91,6 +91,9 @@ export async function buildPublicTour(
           id: p.id,
           direction: p.direction,
           url: await storage.resolveReadUrl(p.processedKey ?? p.originalKey),
+          avifUrl: p.avifKey
+            ? await storage.resolveReadUrl(p.avifKey)
+            : null,
           thumbnailUrl: await storage.resolveReadUrl(p.thumbnailKey),
           width: p.width,
           height: p.height,

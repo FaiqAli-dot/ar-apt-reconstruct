@@ -137,7 +137,7 @@ export function PropertiesPage() {
                   >
                     <td className="px-4 py-3">
                       <Link
-                        to={`/properties/${property.id}`}
+                        to={`/properties/${property.slug}`}
                         className="font-semibold text-ink hover:text-copper"
                       >
                         {property.title}
@@ -154,24 +154,24 @@ export function PropertiesPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1.5">
-                        <Link to={`/properties/${property.id}`} className="btn-secondary px-2.5 py-1.5 text-xs">
+                        <Link to={`/properties/${property.slug}`} className="btn-secondary px-2.5 py-1.5 text-xs">
                           Open
                         </Link>
-                        <Link to={`/properties/${property.id}?tab=info`} className="btn-ghost px-2.5 py-1.5 text-xs">
+                        <Link to={`/properties/${property.slug}?tab=info`} className="btn-ghost px-2.5 py-1.5 text-xs">
                           Edit
                         </Link>
                         <a href={tourUrl(property.publicId)} target="_blank" rel="noreferrer" className="btn-ghost px-2.5 py-1.5 text-xs">
                           View Tour
                         </a>
-                        <Link to={`/properties/${property.id}?tab=qr`} className="btn-ghost px-2.5 py-1.5 text-xs">
+                        <Link to={`/properties/${property.slug}?tab=qr`} className="btn-ghost px-2.5 py-1.5 text-xs">
                           QR
                         </Link>
                         {hasRole(UserRole.ADMIN, UserRole.SUPER_ADMIN) ? (
                           <>
-                            <button type="button" className="btn-ghost px-2.5 py-1.5 text-xs" disabled={publishMutation.isPending} onClick={() => publishMutation.mutate(property.id)}>
+                            <button type="button" className="btn-ghost px-2.5 py-1.5 text-xs" disabled={publishMutation.isPending} onClick={() => publishMutation.mutate(property.slug)}>
                               Publish
                             </button>
-                            <button type="button" className="btn-danger px-2.5 py-1.5 text-xs" disabled={archiveMutation.isPending} onClick={() => archiveMutation.mutate(property.id)}>
+                            <button type="button" className="btn-danger px-2.5 py-1.5 text-xs" disabled={archiveMutation.isPending} onClick={() => archiveMutation.mutate(property.slug)}>
                               Archive
                             </button>
                           </>

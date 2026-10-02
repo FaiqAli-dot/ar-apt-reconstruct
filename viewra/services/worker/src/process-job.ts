@@ -3,6 +3,10 @@ import type { Logger } from "pino";
 import type { WorkerConfig } from "./config.js";
 import { processImage } from "./process-image.js";
 import {
+  analyzeImageQuality,
+  buildQualityWarnings,
+} from "./image-quality.js";
+import {
   PhotoModel,
   ProcessingJobModel,
   type ProcessingJobDocument,
@@ -111,21 +115,50 @@ export async function processJob(
   log?.info({ key: photo.originalKey }, "Downloading original");
   const original = await storage.getObject(photo.originalKey);
 
+  log?.info("Analyzing image quality");
+  const qualityMetrics = await analyzeImageQuality(original);
+  const siblings = await PhotoModel.find({
+    nodeId: photo.nodeId,
+    _id: { $ne: photo._id },
+    "metadata.quality.perceptualHash": { $exists: true },
+  }).select("metadata.quality.perceptualHash");
+  const siblingHashes = siblings
+    .map((p) => p.metadata?.quality?.perceptualHash as string | undefined)
+    .filter((h): h is string => Boolean(h));
+  const { warnings: qualityWarnings } = buildQualityWarnings(
+    qualityMetrics,
+    siblingHashes,
+  );
+
   log?.info("Processing image with Sharp");
   const images = await processImage(original);
 
-  const { processedKey, thumbnailKey } = deriveVariantKeys(photo.originalKey);
+  const { processedKey, processedAvifKey, thumbnailKey } = deriveVariantKeys(
+    photo.originalKey,
+  );
 
-  log?.info({ processedKey, thumbnailKey }, "Uploading variants");
+  log?.info({ processedKey, processedAvifKey, thumbnailKey }, "Uploading variants");
   await storage.putObject(processedKey, images.processed, "image/webp");
+  await storage.putObject(processedAvifKey, images.processedAvif, "image/avif");
   await storage.putObject(thumbnailKey, images.thumbnail, "image/webp");
 
+  const existingWarnings = photo.metadata?.warnings ?? [];
+  const mergedWarnings = [
+    ...new Set([...existingWarnings, ...qualityWarnings]),
+  ];
+
   photo.processedKey = processedKey;
+  photo.avifKey = processedAvifKey;
   photo.thumbnailKey = thumbnailKey;
   photo.width = images.width;
   photo.height = images.height;
   photo.mimeType = "image/webp";
   photo.fileSize = images.processed.byteLength;
+  photo.metadata = {
+    ...photo.metadata,
+    warnings: mergedWarnings,
+    quality: qualityMetrics,
+  };
   photo.processingStatus = ProcessingStatus.READY;
   photo.processingError = null;
   await photo.save();

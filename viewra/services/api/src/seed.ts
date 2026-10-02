@@ -24,6 +24,10 @@ import { createS3Client, StorageService } from "./services/storage.js";
 
 type RoomDef = { name: string; type: (typeof RoomType)[keyof typeof RoomType] };
 
+export const E2E_ACCEPTANCE_PUBLIC_ID = "AcceptE2E01";
+export const E2E_DRAFT_PUBLIC_ID = "DraftE2E01";
+export const E2E_ARCHIVED_PUBLIC_ID = "ArchvE2E01";
+
 const DEMO_ROOMS: RoomDef[] = [
   { name: "Entrance", type: RoomType.ENTRANCE },
   { name: "Hall", type: RoomType.HALLWAY },
@@ -33,6 +37,129 @@ const DEMO_ROOMS: RoomDef[] = [
   { name: "Master Bedroom", type: RoomType.BEDROOM },
   { name: "Balcony", type: RoomType.BALCONY },
 ];
+
+async function seedE2eTours(params: {
+  org: { _id: { toString(): string } };
+  operator: { _id: { toString(): string } };
+  storage: StorageService | null;
+}) {
+  let acceptance = await PropertyModel.findOne({
+    publicId: E2E_ACCEPTANCE_PUBLIC_ID,
+  });
+  if (!acceptance) {
+    acceptance = await PropertyModel.create({
+      organizationId: params.org._id,
+      title: "Acceptance Graph E2E",
+      slug: "acceptance-graph-e2e",
+      publicId: E2E_ACCEPTANCE_PUBLIC_ID,
+      description: "Published N1–N8 acceptance graph for automated browser tests.",
+      status: PropertyStatus.PUBLISHED,
+      publishedAt: new Date(),
+    });
+  } else if (acceptance.status !== PropertyStatus.PUBLISHED) {
+    acceptance.status = PropertyStatus.PUBLISHED;
+    acceptance.publishedAt = new Date();
+    await acceptance.save();
+  }
+
+  let hallRoom = await RoomModel.findOne({
+    propertyId: acceptance._id,
+    name: "Hall",
+  });
+  if (!hallRoom) {
+    hallRoom = await RoomModel.create({
+      propertyId: acceptance._id,
+      name: "Hall",
+      type: RoomType.HALLWAY,
+      order: 0,
+    });
+  }
+  const acceptanceNodes = [
+    { label: "N1", sequence: 0, x: 0, y: 40 },
+    { label: "N2", sequence: 1, x: 40, y: 40 },
+    { label: "N3", sequence: 2, x: 40, y: 0 },
+    { label: "N4", sequence: 3, x: 40, y: -20 },
+    { label: "N5", sequence: 4, x: 20, y: 0 },
+    { label: "N6", sequence: 5, x: 40, y: 80 },
+    { label: "N7", sequence: 6, x: 40, y: 100 },
+    { label: "N8", sequence: 7, x: 60, y: 80 },
+  ];
+  const accNodeIds = new Map<string, string>();
+  for (const def of acceptanceNodes) {
+    let node = await NodeModel.findOne({
+      propertyId: acceptance._id,
+      label: def.label,
+    });
+    if (!node) {
+      node = await NodeModel.create({
+        propertyId: acceptance._id,
+        roomId: hallRoom._id,
+        label: def.label,
+        sequence: def.sequence,
+        approximatePosition: { x: def.x, y: def.y },
+        status: NodeStatus.READY,
+        captureMetadata: { operatorId: params.operator._id },
+      });
+    }
+    accNodeIds.set(def.label, node._id.toString());
+    await ensureReadyPhotos(params.storage, {
+      organizationId: params.org._id.toString(),
+      propertyId: acceptance._id.toString(),
+      nodeId: node._id.toString(),
+    });
+  }
+
+  const accEdges: Array<[string, string, string]> = [
+    ["N1", "N2", ConnectionDirection.FORWARD],
+    ["N2", "N3", ConnectionDirection.LEFT],
+    ["N3", "N4", ConnectionDirection.FORWARD],
+    ["N4", "N5", ConnectionDirection.FORWARD],
+    ["N5", "N2", ConnectionDirection.BACK],
+    ["N2", "N6", ConnectionDirection.RIGHT],
+    ["N6", "N7", ConnectionDirection.FORWARD],
+    ["N7", "N8", ConnectionDirection.FORWARD],
+    ["N8", "N2", ConnectionDirection.BACK],
+  ];
+  for (const [from, to, direction] of accEdges) {
+    const fromId = accNodeIds.get(from)!;
+    const toId = accNodeIds.get(to)!;
+    const exists = await ConnectionModel.findOne({
+      propertyId: acceptance._id,
+      fromNodeId: fromId,
+      toNodeId: toId,
+    });
+    if (!exists) {
+      await ConnectionModel.create({
+        propertyId: acceptance._id,
+        fromNodeId: fromId,
+        toNodeId: toId,
+        direction,
+      });
+    }
+  }
+
+  let draft = await PropertyModel.findOne({ publicId: E2E_DRAFT_PUBLIC_ID });
+  if (!draft) {
+    draft = await PropertyModel.create({
+      organizationId: params.org._id,
+      title: "Draft E2E Tour",
+      slug: "draft-e2e-tour",
+      publicId: E2E_DRAFT_PUBLIC_ID,
+      status: PropertyStatus.DRAFT,
+    });
+  }
+
+  let archived = await PropertyModel.findOne({ publicId: E2E_ARCHIVED_PUBLIC_ID });
+  if (!archived) {
+    archived = await PropertyModel.create({
+      organizationId: params.org._id,
+      title: "Archived E2E Tour",
+      slug: "archived-e2e-tour",
+      publicId: E2E_ARCHIVED_PUBLIC_ID,
+      status: PropertyStatus.ARCHIVED,
+    });
+  }
+}
 
 async function ensureReadyPhotos(
   storage: StorageService | null,
@@ -322,6 +449,12 @@ async function seed() {
     property.publishedAt = new Date();
     await property.save();
   }
+
+  await seedE2eTours({
+    org,
+    operator: operator!,
+    storage,
+  });
 
   console.log("Seed complete");
   console.log(`  Org: ${org.name} (${org._id})`);
