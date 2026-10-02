@@ -1,0 +1,55 @@
+@import "@fontsource/fraunces/400.css";
+@import "@fontsource/fraunces/600.css";
+@import "@fontsource/fraunces/700.css";
+@import "@fontsource/dm-sans/400.css";
+@import "@fontsource/dm-sans/500.css";
+@import "@fontsource/dm-sans/600.css";
+@import "@fontsource/dm-sans/700.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-ink: #0f1419;
+  --color-ink-soft: #1a222c;
+  --color-ink-muted: #5c6672;
+  --color-cream: #fbf7f0;
+  --color-cream-soft: #f3ebe0;
+  --color-cream-deep: #e8ddd0;
+  --color-copper: #c4783b;
+  --color-copper-soft: #d4925a;
+  --color-copper-deep: #9a5a28;
+  --color-line: rgba(15, 20, 25, 0.1);
+  --color-success: #2f7d4a;
+  --color-danger: #b3412d;
+  --color-warning: #b27a1f;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { min-height: 100%; }
+body {
+  margin: 0;
+  font-family: "DM Sans", system-ui, sans-serif;
+  color: var(--color-ink);
+  background: var(--color-cream);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+button, input, select, textarea { font: inherit; }
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-copper disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary { @apply btn bg-copper text-cream shadow-soft hover:bg-copper-soft; }
+  .btn-secondary { @apply btn border border-line bg-cream text-ink hover:bg-cream-soft; }
+  .btn-ghost { @apply btn text-ink-muted hover:bg-cream-deep/60 hover:text-ink; }
+  .btn-danger { @apply btn bg-danger/10 text-danger hover:bg-danger/15; }
+  .field {
+    @apply w-full rounded-lg border border-line bg-white/70 px-3 py-2.5 text-sm text-ink shadow-sm outline-none transition placeholder:text-ink-muted/70 focus:border-copper focus:ring-2 focus:ring-copper/20;
+  }
+  .label { @apply mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted; }
+  .panel { @apply rounded-2xl border border-line/80 bg-cream/90 shadow-soft backdrop-blur; }
+  .chip { @apply inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold tracking-wide; }
+}
