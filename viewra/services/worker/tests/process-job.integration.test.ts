@@ -2,7 +2,7 @@ import { Types } from "mongoose";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PhotoDirection, ProcessingStatus } from "@viewra/types";
 import { storageKey } from "@viewra/shared";
-import { createTestJpeg } from "../../src/image.js";
+import { createTestJpeg } from "../../src/process-image.js";
 import { PhotoModel, ProcessingJobModel } from "../../src/models.js";
 import {
   claimNextJob,

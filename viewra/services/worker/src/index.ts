@@ -8,7 +8,7 @@ import { runWorkerLoop } from "./worker.js";
 export { loadConfig, config, type WorkerConfig } from "./config.js";
 export { connectDb, disconnectDb } from "./db.js";
 export { PhotoModel, ProcessingJobModel } from "./models.js";
-export { processImage, createTestJpeg } from "./image.js";
+export { processImage, createTestJpeg } from "./process-image.js";
 export {
   claimNextJob,
   processJob,
