@@ -1,0 +1,6 @@
+{
+  "name": "@viewra/config",
+  "version": "1.0.0",
+  "private": true,
+  "files": ["tsconfig.base.json", "tsconfig.node.json"]
+}

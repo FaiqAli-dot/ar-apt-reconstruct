@@ -1,0 +1,27 @@
+{
+  "name": "viewra",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Viewra — photographic spatial walkthrough platform",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "pnpm -r --filter=./packages/* build && pnpm -r --filter=./services/* build && pnpm -r --filter=./apps/* build",
+    "dev": "pnpm -r --parallel --filter=./services/* --filter=./apps/* dev",
+    "dev:api": "pnpm --filter @viewra/api dev",
+    "dev:worker": "pnpm --filter @viewra/worker dev",
+    "dev:admin": "pnpm --filter @viewra/admin dev",
+    "dev:viewer": "pnpm --filter @viewra/viewer dev",
+    "test": "pnpm -r --filter=./services/* --filter=./packages/* --filter=./apps/* test",
+    "test:e2e": "pnpm --filter @viewra/viewer test:e2e",
+    "test:api": "pnpm --filter @viewra/api test",
+    "test:worker": "pnpm --filter @viewra/worker test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "seed": "pnpm --filter @viewra/api seed",
+    "docker:up": "docker compose -f infrastructure/docker-compose.yml up -d",
+    "docker:down": "docker compose -f infrastructure/docker-compose.yml down"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

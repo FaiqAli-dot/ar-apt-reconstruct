@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.env
+.env.local
+tests/.cache/
+*.log
+.turbo
+tests/helpers/.cache/
