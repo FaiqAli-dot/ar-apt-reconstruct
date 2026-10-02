@@ -31,3 +31,6 @@ packages/CaptureCore/.build/
 .demo/
 .env
 .env.local
+
+apps/viewer/test-results/
+apps/viewer/playwright-report/
