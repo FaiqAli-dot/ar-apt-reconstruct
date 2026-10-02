@@ -2,6 +2,7 @@ import {
   CreateBucketCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  PutBucketPolicyCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -37,6 +38,42 @@ export class StorageService {
       await this.client.send(
         new CreateBucketCommand({ Bucket: this.config.s3Bucket }),
       );
+    }
+
+    // Allow anonymous read for processed/thumbnail assets (MinIO/R2/S3 public bucket or CDN).
+    // Private deployments can ignore policy failures and rely on presigned GET URLs instead.
+    try {
+      const policy = {
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Effect: "Allow",
+            Principal: { AWS: ["*"] },
+            Action: ["s3:GetObject"],
+            Resource: [`arn:aws:s3:::${this.config.s3Bucket}/*`],
+          },
+        ],
+      };
+      await this.client.send(
+        new PutBucketPolicyCommand({
+          Bucket: this.config.s3Bucket,
+          Policy: JSON.stringify(policy),
+        }),
+      );
+    } catch {
+      // Policy may be denied on locked-down cloud buckets — OK.
+    }
+  }
+
+  async resolveReadUrl(
+    key: string | null | undefined,
+    expiresIn = 3600,
+  ): Promise<string | null> {
+    if (!key) return null;
+    try {
+      return await this.getPresignedGetUrl(key, expiresIn);
+    } catch {
+      return this.getPublicUrl(key);
     }
   }
 

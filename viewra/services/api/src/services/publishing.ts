@@ -81,28 +81,33 @@ export async function buildPublicTour(
     photosByNode.set(photo.nodeId, list);
   }
 
-  const nodes = graph.nodes.map((node) => {
-    const photos = (photosByNode.get(node.id) ?? [])
-      .filter((p) => p.direction === "CENTER" || p.processingStatus === "READY")
-      .map((p) => ({
-        id: p.id,
-        direction: p.direction,
-        url: storage.getPublicUrl(p.processedKey ?? p.originalKey),
-        thumbnailUrl: storage.getPublicUrl(p.thumbnailKey),
-        width: p.width,
-        height: p.height,
-      }));
+  const nodes = await Promise.all(
+    graph.nodes.map(async (node) => {
+      const sourcePhotos = (photosByNode.get(node.id) ?? []).filter(
+        (p) => p.direction === "CENTER" || p.processingStatus === "READY",
+      );
+      const photos = await Promise.all(
+        sourcePhotos.map(async (p) => ({
+          id: p.id,
+          direction: p.direction,
+          url: await storage.resolveReadUrl(p.processedKey ?? p.originalKey),
+          thumbnailUrl: await storage.resolveReadUrl(p.thumbnailKey),
+          width: p.width,
+          height: p.height,
+        })),
+      );
 
-    return {
-      id: node.id,
-      label: node.label,
-      sequence: node.sequence,
-      roomId: node.roomId,
-      roomName: roomsById.get(node.roomId)?.name,
-      approximatePosition: node.approximatePosition,
-      photos,
-    };
-  });
+      return {
+        id: node.id,
+        label: node.label,
+        sequence: node.sequence,
+        roomId: node.roomId,
+        roomName: roomsById.get(node.roomId)?.name,
+        approximatePosition: node.approximatePosition,
+        photos,
+      };
+    }),
+  );
 
   return {
     status: 200 as const,

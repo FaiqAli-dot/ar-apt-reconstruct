@@ -63,16 +63,20 @@ export async function tourRoutes(app: FastifyInstance) {
     }
 
     const room = graph.rooms.find((r) => r.id === node.roomId);
-    const photos = graph.photos
-      .filter((p) => p.nodeId === node.id)
-      .map((p) => ({
-        id: p.id,
-        direction: p.direction,
-        url: app.storage.getPublicUrl(p.processedKey ?? p.originalKey),
-        thumbnailUrl: app.storage.getPublicUrl(p.thumbnailKey),
-        width: p.width,
-        height: p.height,
-      }));
+    const photos = await Promise.all(
+      graph.photos
+        .filter((p) => p.nodeId === node.id)
+        .map(async (p) => ({
+          id: p.id,
+          direction: p.direction,
+          url: await app.storage.resolveReadUrl(
+            p.processedKey ?? p.originalKey,
+          ),
+          thumbnailUrl: await app.storage.resolveReadUrl(p.thumbnailKey),
+          width: p.width,
+          height: p.height,
+        })),
+    );
 
     const connections = graph.connections
       .filter((c) => c.fromNodeId === node.id)
