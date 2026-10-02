@@ -1,0 +1,154 @@
+# Production-style stack: mongo, minio, api, worker, admin, viewer
+# Usage (from repo root viewra/):
+#   docker compose -f infrastructure/docker-compose.prod.yml --env-file .env up -d --build
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: viewra-prod-mongo
+    restart: unless-stopped
+    ports:
+      - "${MONGO_PUBLISH_PORT:-27017}:27017"
+    volumes:
+      - viewra-prod-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: viewra-prod-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+    volumes:
+      - viewra-prod-minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: viewra-prod-minio-init
+    depends_on:
+      minio:
+        condition: service_started
+    entrypoint: >
+      /bin/sh -c "
+      sleep 3;
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER:-minioadmin} $${MINIO_ROOT_PASSWORD:-minioadmin};
+      mc mb --ignore-existing local/$${S3_BUCKET:-viewra};
+      exit 0;
+      "
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minioadmin}
+      S3_BUCKET: ${S3_BUCKET:-viewra}
+
+  api:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.api
+    container_name: viewra-prod-api
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:-mongodb://mongo:27017/viewra}
+      DATABASE_NAME: ${DATABASE_NAME:-viewra}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      BCRYPT_ROUNDS: ${BCRYPT_ROUNDS:-12}
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-viewra}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-http://localhost:9000/viewra}
+      API_HOST: 0.0.0.0
+      API_PORT: 3001
+      API_URL: ${API_URL:-http://localhost:3001}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://localhost:8081}
+      RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-200}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-60000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PUBLIC_VIEWER_URL: ${PUBLIC_VIEWER_URL:-http://localhost:8081}
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.worker
+    container_name: viewra-prod-worker
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      api:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:-mongodb://mongo:27017/viewra}
+      DATABASE_NAME: ${DATABASE_NAME:-viewra}
+      S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-viewra}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-http://localhost:9000/viewra}
+      WORKER_POLL_INTERVAL_MS: ${WORKER_POLL_INTERVAL_MS:-2000}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
+      WORKER_MAX_RETRIES: ${WORKER_MAX_RETRIES:-5}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+
+  admin:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.admin
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+        VITE_PUBLIC_VIEWER_URL: ${VITE_PUBLIC_VIEWER_URL:-http://localhost:8081}
+        VITE_S3_PUBLIC_URL: ${VITE_S3_PUBLIC_URL:-http://localhost:9000/viewra}
+    container_name: viewra-prod-admin
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${ADMIN_PORT:-8080}:80"
+
+  viewer:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile.viewer
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+    container_name: viewra-prod-viewer
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${VIEWER_PORT:-8081}:80"
+
+volumes:
+  viewra-prod-mongo-data:
+  viewra-prod-minio-data:

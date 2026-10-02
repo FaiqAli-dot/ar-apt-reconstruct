@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1
+
+FROM node:20-bookworm-slim AS base
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+WORKDIR /app
+
+FROM base AS deps
+# sharp needs build tooling on slim images
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/config/package.json packages/config/
+COPY packages/types/package.json packages/types/
+COPY packages/shared/package.json packages/shared/
+COPY packages/ui/package.json packages/ui/
+COPY services/api/package.json services/api/
+COPY services/worker/package.json services/worker/
+COPY apps/admin/package.json apps/admin/
+COPY apps/viewer/package.json apps/viewer/
+RUN pnpm install --frozen-lockfile
+
+FROM deps AS build
+COPY packages ./packages
+COPY services/worker ./services/worker
+RUN pnpm --filter @viewra/types build \
+ && pnpm --filter @viewra/shared build \
+ && pnpm --filter @viewra/worker build
+
+FROM node:20-bookworm-slim AS runtime
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate \
+ && apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=build /app /app
+WORKDIR /app/services/worker
+CMD ["node", "dist/index.js"]

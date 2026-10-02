@@ -122,10 +122,13 @@ async function seed() {
       name: "Viewra Admin",
       email: config.seedAdminEmail,
       passwordHash: adminHash,
-      role: UserRole.ADMIN,
+      role: UserRole.SUPER_ADMIN,
       status: UserStatus.ACTIVE,
     });
-    console.log(`Created admin ${config.seedAdminEmail}`);
+    console.log(`Created super admin ${config.seedAdminEmail}`);
+  } else if (admin.role !== UserRole.SUPER_ADMIN) {
+    admin.role = UserRole.SUPER_ADMIN;
+    await admin.save();
   }
 
   const operatorHash = await hashPassword(
@@ -185,16 +188,21 @@ async function seed() {
   }
 
   // Primary walkthrough: Entrance → Hall → branches → Balcony
-  const primaryNodes: Array<{ label: string; room: string; sequence: number }> =
-    [
-      { label: "Entrance", room: "Entrance", sequence: 0 },
-      { label: "Hall Hub", room: "Hall", sequence: 1 },
-      { label: "Living Room", room: "Living Room", sequence: 2 },
-      { label: "Kitchen", room: "Kitchen", sequence: 3 },
-      { label: "Bathroom", room: "Bathroom", sequence: 4 },
-      { label: "Master Bedroom", room: "Master Bedroom", sequence: 5 },
-      { label: "Balcony", room: "Balcony", sequence: 6 },
-    ];
+  const primaryNodes: Array<{
+    label: string;
+    room: string;
+    sequence: number;
+    x: number;
+    y: number;
+  }> = [
+    { label: "Entrance", room: "Entrance", sequence: 0, x: 0, y: 40 },
+    { label: "Hall Hub", room: "Hall", sequence: 1, x: 40, y: 40 },
+    { label: "Living Room", room: "Living Room", sequence: 2, x: 40, y: 0 },
+    { label: "Kitchen", room: "Kitchen", sequence: 3, x: 80, y: 40 },
+    { label: "Bathroom", room: "Bathroom", sequence: 4, x: 40, y: 80 },
+    { label: "Master Bedroom", room: "Master Bedroom", sequence: 5, x: 80, y: 0 },
+    { label: "Balcony", room: "Balcony", sequence: 6, x: 120, y: 0 },
+  ];
 
   const nodeIds = new Map<string, string>();
   for (const def of primaryNodes) {
@@ -208,7 +216,7 @@ async function seed() {
         roomId: roomsByName.get(def.room)!,
         label: def.label,
         sequence: def.sequence,
-        approximatePosition: { x: def.sequence * 10, y: 0 },
+        approximatePosition: { x: def.x, y: def.y },
         status: NodeStatus.READY,
         captureMetadata: { operatorId: operator!._id },
       });
@@ -223,14 +231,14 @@ async function seed() {
 
   // Acceptance branch pattern in Hall: N1→N2; N2→N3→N4→N5→N2 and N2→N6→N7→N8→N2
   const branchDefs = [
-    { label: "N1", room: "Hall", sequence: 10 },
-    { label: "N2", room: "Hall", sequence: 11 },
-    { label: "N3", room: "Hall", sequence: 12 },
-    { label: "N4", room: "Hall", sequence: 13 },
-    { label: "N5", room: "Hall", sequence: 14 },
-    { label: "N6", room: "Hall", sequence: 15 },
-    { label: "N7", room: "Hall", sequence: 16 },
-    { label: "N8", room: "Hall", sequence: 17 },
+    { label: "N1", room: "Hall", sequence: 10, x: 0, y: 140 },
+    { label: "N2", room: "Hall", sequence: 11, x: 40, y: 140 },
+    { label: "N3", room: "Hall", sequence: 12, x: 40, y: 100 },
+    { label: "N4", room: "Hall", sequence: 13, x: 40, y: 70 },
+    { label: "N5", room: "Hall", sequence: 14, x: 20, y: 100 },
+    { label: "N6", room: "Hall", sequence: 15, x: 40, y: 180 },
+    { label: "N7", room: "Hall", sequence: 16, x: 40, y: 210 },
+    { label: "N8", room: "Hall", sequence: 17, x: 60, y: 180 },
   ];
   for (const def of branchDefs) {
     let node = await NodeModel.findOne({
@@ -243,7 +251,7 @@ async function seed() {
         roomId: roomsByName.get(def.room)!,
         label: def.label,
         sequence: def.sequence,
-        approximatePosition: { x: (def.sequence - 10) * 5, y: 20 },
+        approximatePosition: { x: def.x, y: def.y },
         status: NodeStatus.READY,
       });
     }
@@ -292,11 +300,21 @@ async function seed() {
     }
   }
 
+  // Publish demo so public viewer works end-to-end after seed
+  if (property.status !== PropertyStatus.PUBLISHED) {
+    property.status = PropertyStatus.PUBLISHED;
+    property.publishedAt = new Date();
+    await property.save();
+  }
+
   console.log("Seed complete");
   console.log(`  Org: ${org.name} (${org._id})`);
   console.log(`  Admin: ${config.seedAdminEmail}`);
   console.log(`  Operator: ${config.seedOperatorEmail}`);
   console.log(`  Property: ${property.title} publicId=${property.publicId}`);
+  console.log(
+    `  Tour: ${config.publicViewerUrl.replace(/\/$/, "")}/tour/${property.publicId}`,
+  );
 
   await disconnectDb();
 }

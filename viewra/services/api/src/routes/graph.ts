@@ -95,7 +95,7 @@ export async function graphRoutes(app: FastifyInstance) {
       const property = await findOrgProperty(request.authUser, id, reply);
       if (!property) return;
 
-      const tourUrl = `${app.appConfig.publicViewerUrl.replace(/\/$/, "")}/t/${property.publicId}`;
+      const tourUrl = `${app.appConfig.publicViewerUrl.replace(/\/$/, "")}/tour/${property.publicId}`;
       return {
         publicId: property.publicId,
         url: tourUrl,
