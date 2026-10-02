@@ -6,3 +6,4 @@ coverage/
 tests/.cache/
 *.log
 .turbo
+tests/helpers/.cache/

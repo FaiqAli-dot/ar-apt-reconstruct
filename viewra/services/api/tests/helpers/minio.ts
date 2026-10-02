@@ -1,44 +1,43 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { createWriteStream, existsSync, mkdirSync, chmodSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { pipeline } from "node:stream/promises";
 import { setTimeout as delay } from "node:timers/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import {
   CreateBucketCommand,
   HeadBucketCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 
+const execFileAsync = promisify(execFile);
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR = join(__dirname, ".cache");
 const MINIO_BIN = join(CACHE_DIR, "minio");
 const MINIO_PORT = 19000;
 const MINIO_CONSOLE_PORT = 19001;
+const MINIO_GO_MODULE =
+  "github.com/minio/minio@RELEASE.2025-10-15T17-29-55Z";
 
-async function downloadMinio(): Promise<string> {
+async function ensureMinioBinary(): Promise<string> {
   if (existsSync(MINIO_BIN)) return MINIO_BIN;
   mkdirSync(CACHE_DIR, { recursive: true });
 
-  const platform = process.platform;
-  const arch = process.arch === "arm64" ? "arm64" : "amd64";
-  let url: string;
-  if (platform === "linux") {
-    url = `https://dl.min.io/server/minio/release/linux-${arch}/minio`;
-  } else if (platform === "darwin") {
-    url = `https://dl.min.io/server/minio/release/darwin-${arch}/minio`;
-  } else {
-    throw new Error(`Unsupported platform for MinIO: ${platform}`);
-  }
+  // Prefer go install — MinIO no longer publishes stable binary CDN assets.
+  await execFileAsync("go", ["install", "-v", MINIO_GO_MODULE], {
+    env: {
+      ...process.env,
+      GOBIN: CACHE_DIR,
+    },
+    timeout: 300_000,
+    maxBuffer: 10 * 1024 * 1024,
+  });
 
-  const res = await fetch(url);
-  if (!res.ok || !res.body) {
-    throw new Error(`Failed to download MinIO: ${res.status}`);
+  if (!existsSync(MINIO_BIN)) {
+    throw new Error(`MinIO binary not found at ${MINIO_BIN} after go install`);
   }
-  const fileStream = createWriteStream(MINIO_BIN);
-  // @ts-expect-error Node fetch body is a web stream
-  await pipeline(res.body, fileStream);
-  chmodSync(MINIO_BIN, 0o755);
   return MINIO_BIN;
 }
 
@@ -53,7 +52,7 @@ export type MinioHarness = {
 };
 
 export async function startMinio(): Promise<MinioHarness> {
-  const bin = await downloadMinio();
+  const bin = await ensureMinioBinary();
   const dataDir = join(CACHE_DIR, "minio-data");
   mkdirSync(dataDir, { recursive: true });
 
@@ -64,7 +63,14 @@ export async function startMinio(): Promise<MinioHarness> {
 
   const child: ChildProcess = spawn(
     bin,
-    ["server", dataDir, "--address", `:${MINIO_PORT}`, "--console-address", `:${MINIO_CONSOLE_PORT}`],
+    [
+      "server",
+      dataDir,
+      "--address",
+      `:${MINIO_PORT}`,
+      "--console-address",
+      `:${MINIO_CONSOLE_PORT}`,
+    ],
     {
       env: {
         ...process.env,
@@ -83,6 +89,12 @@ export async function startMinio(): Promise<MinioHarness> {
   child.stdout?.on("data", onData);
   child.stderr?.on("data", onData);
 
+  child.on("exit", (code) => {
+    if (!ready) {
+      console.error(`MinIO exited early with code ${code}`);
+    }
+  });
+
   const client = new S3Client({
     region: "us-east-1",
     endpoint,
@@ -90,7 +102,7 @@ export async function startMinio(): Promise<MinioHarness> {
     credentials: { accessKeyId: accessKey, secretAccessKey: secretKey },
   });
 
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 80; i++) {
     try {
       await client.send(new HeadBucketCommand({ Bucket: bucket }));
       ready = true;

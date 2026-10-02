@@ -9,7 +9,7 @@ const refreshTokenSchema = new Schema(
       index: true,
     },
     tokenHash: { type: String, required: true, unique: true },
-    expiresAt: { type: Date, required: true, index: true },
+    expiresAt: { type: Date, required: true },
   },
   { timestamps: true },
 );
