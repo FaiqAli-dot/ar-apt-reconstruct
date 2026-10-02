@@ -1,7 +1,7 @@
 import { ProcessingStatus } from "@viewra/types";
 import type { Logger } from "pino";
 import type { WorkerConfig } from "./config.js";
-import { processImage } from "./image.js";
+import { processImage } from "./process-image.js";
 import {
   PhotoModel,
   ProcessingJobModel,
