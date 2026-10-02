@@ -1,4 +1,9 @@
-import { Schema, model, type InferSchemaType, type Types } from "mongoose";
+import {
+  Schema,
+  model,
+  type HydratedDocument,
+  type InferSchemaType,
+} from "mongoose";
 import { PhotoDirection, ProcessingStatus } from "@viewra/types";
 
 const photoSchema = new Schema(
@@ -47,9 +52,9 @@ const photoSchema = new Schema(
 
 photoSchema.index({ nodeId: 1, direction: 1 }, { unique: true });
 
-export type PhotoDocument = InferSchemaType<typeof photoSchema> & {
-  _id: Types.ObjectId;
-};
+export type PhotoDocument = HydratedDocument<
+  InferSchemaType<typeof photoSchema>
+>;
 
 export const PhotoModel = model("Photo", photoSchema);
 
@@ -80,11 +85,9 @@ const processingJobSchema = new Schema(
   { timestamps: true },
 );
 
-export type ProcessingJobDocument = InferSchemaType<
-  typeof processingJobSchema
-> & {
-  _id: Types.ObjectId;
-};
+export type ProcessingJobDocument = HydratedDocument<
+  InferSchemaType<typeof processingJobSchema>
+>;
 
 export const ProcessingJobModel = model("ProcessingJob", processingJobSchema);
 
