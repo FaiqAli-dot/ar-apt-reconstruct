@@ -5,24 +5,24 @@ export default {
     extend: {
       colors: {
         ink: {
-          DEFAULT: "var(--color-ink)",
-          soft: "var(--color-ink-soft)",
-          muted: "var(--color-ink-muted)",
+          DEFAULT: "rgb(var(--color-ink) / <alpha-value>)",
+          soft: "rgb(var(--color-ink-soft) / <alpha-value>)",
+          muted: "rgb(var(--color-ink-muted) / <alpha-value>)",
         },
         cream: {
-          DEFAULT: "var(--color-cream)",
-          soft: "var(--color-cream-soft)",
-          deep: "var(--color-cream-deep)",
+          DEFAULT: "rgb(var(--color-cream) / <alpha-value>)",
+          soft: "rgb(var(--color-cream-soft) / <alpha-value>)",
+          deep: "rgb(var(--color-cream-deep) / <alpha-value>)",
         },
         copper: {
-          DEFAULT: "var(--color-copper)",
-          soft: "var(--color-copper-soft)",
-          deep: "var(--color-copper-deep)",
+          DEFAULT: "rgb(var(--color-copper) / <alpha-value>)",
+          soft: "rgb(var(--color-copper-soft) / <alpha-value>)",
+          deep: "rgb(var(--color-copper-deep) / <alpha-value>)",
         },
-        line: "var(--color-line)",
-        success: "var(--color-success)",
-        danger: "var(--color-danger)",
-        warning: "var(--color-warning)",
+        line: "rgb(var(--color-line) / 0.1)",
+        success: "rgb(var(--color-success) / <alpha-value>)",
+        danger: "rgb(var(--color-danger) / <alpha-value>)",
+        warning: "rgb(var(--color-warning) / <alpha-value>)",
       },
       fontFamily: {
         display: ["Fraunces", "Georgia", "serif"],
