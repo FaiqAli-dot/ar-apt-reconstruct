@@ -19,6 +19,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/tour/:publicId" element={<TourPage />} />
+      <Route path="/preview/:token" element={<TourPage mode="preview" />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

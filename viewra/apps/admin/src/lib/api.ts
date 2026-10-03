@@ -222,6 +222,12 @@ export const api = {
       `/api/properties/${id}/publish-validation`,
     );
   },
+  createPreviewLink(id: string) {
+    return request<{ token: string; url: string; expiresAt: string }>(
+      `/api/properties/${id}/preview-link`,
+      { method: "POST" },
+    );
+  },
   publishProperty(id: string) {
     return request<{ property: Property; report: PublishValidationReport }>(
       `/api/properties/${id}/publish`,

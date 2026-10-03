@@ -1,5 +1,5 @@
 import { Schema, model, type InferSchemaType, type Types } from "mongoose";
-import { NodeStatus } from "@viewra/types";
+import { NodeStatus, PhotoDirection } from "@viewra/types";
 
 const nodeSchema = new Schema(
   {
@@ -31,6 +31,11 @@ const nodeSchema = new Schema(
       type: String,
       enum: Object.values(NodeStatus),
       default: NodeStatus.DRAFT,
+    },
+    /** Directions the operator intentionally did not photograph (e.g. a wall). */
+    skippedDirections: {
+      type: [{ type: String, enum: Object.values(PhotoDirection) }],
+      default: [],
     },
   },
   { timestamps: true },

@@ -14,11 +14,17 @@ import { RoomLabel } from "./RoomLabel";
 
 type TourViewerProps = {
   tour: PublicTour;
-  publicId: string;
+  publicId?: string;
+  preview?: boolean;
+  /** Deep-link to a specific stop (`?node=`); falls back to the default start. */
+  startNodeId?: string;
 };
 
-export function TourViewer({ tour, publicId }: TourViewerProps) {
-  const startNode = useMemo(() => pickStartNode(tour.nodes), [tour.nodes]);
+export function TourViewer({ tour, publicId, preview = false, startNodeId }: TourViewerProps) {
+  const startNode = useMemo(
+    () => tour.nodes.find((node) => node.id === startNodeId) ?? pickStartNode(tour.nodes),
+    [tour.nodes, startNodeId],
+  );
   const [currentNodeId, setCurrentNodeId] = useState(startNode?.id ?? "");
   const [mapOpen, setMapOpen] = useState(false);
   const [showBrand, setShowBrand] = useState(true);
@@ -96,6 +102,17 @@ export function TourViewer({ tour, publicId }: TourViewerProps) {
       />
 
       <RoomLabel label={label} />
+
+      {preview ? (
+        <div
+          className="absolute inset-x-0 top-0 z-50 flex justify-center px-4 pt-[max(0.75rem,env(safe-area-inset-top))]"
+          data-testid="preview-banner"
+        >
+          <p className="rounded-sm border border-amber-300/40 bg-ink-950/70 px-3 py-1.5 text-xs font-medium tracking-wide text-amber-200 backdrop-blur-[2px]">
+            Preview{tour.property.status && tour.property.status !== "PUBLISHED" ? " — not published yet" : ""} · {tour.nodes.length} stops
+          </p>
+        </div>
+      ) : null}
 
       <NavArrows connections={connections} onNavigate={goToNode} />
 

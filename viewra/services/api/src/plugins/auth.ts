@@ -23,6 +23,12 @@ export type JwtPayload = {
   type: "access";
 };
 
+/** Grants read-only tour preview of one property; rejected by `authenticate`. */
+export type PreviewTokenPayload = {
+  propertyId: string;
+  type: "preview";
+};
+
 declare module "fastify" {
   interface FastifyInstance {
     appConfig: AppConfig;
@@ -38,7 +44,7 @@ declare module "fastify" {
 
 declare module "@fastify/jwt" {
   interface FastifyJWT {
-    payload: JwtPayload;
+    payload: JwtPayload | PreviewTokenPayload;
     user: JwtPayload;
   }
 }

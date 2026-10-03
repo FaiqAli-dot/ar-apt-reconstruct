@@ -17,6 +17,33 @@ final class CaptureValidatorTests: XCTestCase {
         XCTAssertTrue(result.errors.contains { $0.code == .missingPhoto && $0.direction == .right })
     }
 
+    func testSkippedDirectionsCountTowardCompletion() {
+        let result = CaptureValidator().validate(nodeId: "N1", completedPhotos: [.center], skippedDirections: [.left, .right])
+        XCTAssertTrue(result.isComplete)
+        XCTAssertTrue(result.isAcceptable)
+
+        let empty = CaptureValidator().validate(nodeId: "N1", completedPhotos: [], skippedDirections: [.left, .center, .right])
+        XCTAssertFalse(empty.isComplete)
+    }
+
+    func testSessionSkipRequiresAtLeastOnePhoto() {
+        var state = CaptureSessionState(property: Property(title: "P"), room: Room(propertyId: "p", name: "R"))
+        state.nodes = [Node(id: "n1", propertyId: "p", roomId: "r", label: "N1")]
+        state.currentNodeId = "n1"
+
+        XCTAssertTrue(state.markDirectionSkipped(.left))
+        XCTAssertTrue(state.markDirectionSkipped(.right))
+        XCTAssertFalse(state.markDirectionSkipped(.center), "cannot skip every direction")
+        XCTAssertFalse(state.isCurrentNodeComplete)
+
+        state.markPhotoComplete(.center)
+        XCTAssertTrue(state.isCurrentNodeComplete)
+        XCTAssertEqual(state.photoCompletionProgress, 1)
+
+        state.markPhotoComplete(.left)
+        XCTAssertFalse(state.currentNodeSkippedDirections.contains(.left), "capturing clears a skip")
+    }
+
     func testCompleteCaptureWithDarkBlurWarningsAndUseAnyway() {
         let validator = CaptureValidator()
         let samples = [

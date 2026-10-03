@@ -566,6 +566,7 @@ export function GraphEditor({ propertyId, graph, focusNodeId }: Props) {
             <PhotoManager
               nodeId={selected.id}
               photos={selected.photos ?? []}
+              skippedDirections={selected.skippedDirections}
               onChanged={invalidate}
             />
           </div>

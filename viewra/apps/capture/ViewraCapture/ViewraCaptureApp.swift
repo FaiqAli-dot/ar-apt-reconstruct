@@ -45,6 +45,13 @@ struct RootView: View {
             }
         }
         .background(ViewraTheme.bg.ignoresSafeArea())
+        .task(id: appState.isAuthenticated) {
+            // Backed-off retries only become due later, so poll while signed in.
+            while appState.isAuthenticated && !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(10))
+                if appState.uploadQueue.pendingCount > 0 { await appState.processUploads() }
+            }
+        }
     }
 }
 

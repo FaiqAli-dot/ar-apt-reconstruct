@@ -9,6 +9,7 @@ import { ErrorBanner, StatusBadge } from "@/components/ui/primitives";
 type Props = {
   nodeId: string;
   photos: Photo[];
+  skippedDirections?: PhotoDirection[];
   onChanged: () => Promise<unknown> | void;
 };
 
@@ -27,7 +28,7 @@ const MIME_MAP: Record<string, UploadMime> = {
   "image/heif": "image/heif",
 };
 
-export function PhotoManager({ nodeId, photos, onChanged }: Props) {
+export function PhotoManager({ nodeId, photos, skippedDirections = [], onChanged }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -114,6 +115,8 @@ export function PhotoManager({ nodeId, photos, onChanged }: Props) {
                 </span>
                 {photo ? (
                   <StatusBadge status={photo.processingStatus} />
+                ) : skippedDirections.includes(direction) ? (
+                  <span className="chip bg-ink/5 text-ink-muted">SKIPPED</span>
                 ) : (
                   <span className="chip bg-ink/10 text-ink-muted">MISSING</span>
                 )}

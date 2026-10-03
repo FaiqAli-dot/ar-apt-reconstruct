@@ -4,22 +4,39 @@ import UIKit
 
 @MainActor
 final class CameraCaptureController: NSObject, ObservableObject {
-    let session = AVCaptureSession()
-    private let output = AVCapturePhotoOutput()
+    /// Configured only on `queue`, per AVFoundation's threading guidance.
+    nonisolated(unsafe) let session = AVCaptureSession()
+    nonisolated(unsafe) private let output = AVCapturePhotoOutput()
     private var continuation: CheckedContinuation<Data, Error>?
     private let queue = DispatchQueue(label: "com.viewra.capture.camera")
 
     enum CameraError: LocalizedError {
-        case unavailable, captureFailed
+        case unavailable, captureFailed, busy, permissionDenied
         var errorDescription: String? {
             switch self {
             case .unavailable: return "Camera unavailable"
             case .captureFailed: return "Capture failed"
+            case .busy: return "Capture already in progress"
+            case .permissionDenied: return "Camera access denied — enable it in Settings"
             }
         }
     }
 
     func start() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            configureAndRun()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                guard granted else { return }
+                Task { @MainActor in self?.configureAndRun() }
+            }
+        default:
+            return
+        }
+    }
+
+    private func configureAndRun() {
         queue.async { [weak self] in
             guard let self else { return }
             self.session.beginConfiguration()
@@ -43,7 +60,13 @@ final class CameraCaptureController: NSObject, ObservableObject {
     func stop() { queue.async { [weak self] in self?.session.stopRunning() } }
 
     func captureJPEG() async throws -> Data {
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data, Error>) in
+        if AVCaptureDevice.authorizationStatus(for: .video) == .denied { throw CameraError.permissionDenied }
+        guard continuation == nil else { throw CameraError.busy }
+        // capturePhoto raises an ObjC exception (crash) when there is no active video connection.
+        guard let connection = output.connection(with: .video), connection.isEnabled, connection.isActive else {
+            throw CameraError.unavailable
+        }
+        return try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data, Error>) in
             self.continuation = cont
             self.output.capturePhoto(with: AVCapturePhotoSettings(), delegate: self)
         }

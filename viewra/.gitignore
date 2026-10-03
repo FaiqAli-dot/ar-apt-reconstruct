@@ -34,3 +34,4 @@ packages/CaptureCore/.build/
 
 apps/viewer/test-results/
 apps/viewer/playwright-report/
+.backups/

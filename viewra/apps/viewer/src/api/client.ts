@@ -21,6 +21,14 @@ export async function fetchPublicTour(publicId: string): Promise<PublicTour> {
   return (await response.json()) as PublicTour;
 }
 
+export async function fetchPreviewTour(token: string): Promise<PublicTour> {
+  const response = await fetch(`${API_URL}/api/tours/preview?token=${encodeURIComponent(token)}`);
+  if (!response.ok) {
+    throw await parseError(response);
+  }
+  return (await response.json()) as PublicTour;
+}
+
 export async function trackAnalytics(
   publicId: string,
   payload: TrackAnalyticsInput,

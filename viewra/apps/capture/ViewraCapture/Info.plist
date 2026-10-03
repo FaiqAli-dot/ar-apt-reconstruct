@@ -20,10 +20,15 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Viewra Capture needs camera access to photograph walkthrough nodes (LEFT, CENTER, RIGHT).</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Viewra Capture connects to your Viewra server on the local network to sign in and upload photos.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UIRequiresFullScreen</key>

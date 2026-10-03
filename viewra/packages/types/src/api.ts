@@ -88,6 +88,7 @@ export const updateNodeSchema = z.object({
   sequence: z.number().int().nonnegative().optional(),
   approximatePosition: positionSchema.optional(),
   status: nodeStatusSchema.optional(),
+  skippedDirections: z.array(photoDirectionSchema).max(3).optional(),
   captureMetadata: z
     .object({
       deviceModel: z.string().optional(),

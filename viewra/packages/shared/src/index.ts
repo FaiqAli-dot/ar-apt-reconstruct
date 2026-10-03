@@ -94,9 +94,19 @@ export function validatePropertyGraph(
     }
 
     const photos = photosByNode.get(node.id) ?? [];
+    const skipped = new Set(node.skippedDirections ?? []);
+    if (photos.length === 0 && skipped.size > 0) {
+      issues.push({
+        code: "MISSING_PHOTO",
+        severity: "error",
+        message: `Node ${node.label} has no photos (at least one direction is required)`,
+        nodeId: node.id,
+      });
+    }
     for (const direction of REQUIRED_PHOTO_DIRECTIONS) {
       const photo = photos.find((p) => p.direction === direction);
       if (!photo) {
+        if (skipped.has(direction)) continue;
         issues.push({
           code: "MISSING_PHOTO",
           severity: "error",

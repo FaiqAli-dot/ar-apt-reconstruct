@@ -50,6 +50,19 @@ type InfoValues = z.infer<typeof infoSchema>;
 
 const ROOM_TYPES = Object.values(RoomType);
 
+/** Opens the tab synchronously (popup blockers) and points it at a fresh signed preview link. */
+async function openPreview(propertyId: string) {
+  const tab = window.open("about:blank", "_blank");
+  try {
+    const { url } = await api.createPreviewLink(propertyId);
+    if (tab) tab.location.href = url;
+    else window.location.href = url;
+  } catch (err) {
+    tab?.close();
+    window.alert(err instanceof ApiError ? err.message : "Could not create preview link");
+  }
+}
+
 export function PropertyEditorPage() {
   const { id = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -237,6 +250,13 @@ export function PropertyEditorPage() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={property.status} />
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => void openPreview(property.id)}
+            >
+              Preview tour
+            </button>
             <Link to="/properties" className="btn-secondary">
               Back
             </Link>
@@ -468,6 +488,7 @@ export function PropertyEditorPage() {
                 <PhotoManager
                   nodeId={node.id}
                   photos={(node.photos ?? []) as Photo[]}
+                  skippedDirections={node.skippedDirections}
                   onChanged={async () => {
                     await queryClient.invalidateQueries({
                       queryKey: ["graph", id],

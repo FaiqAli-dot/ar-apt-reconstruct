@@ -4,8 +4,9 @@ struct LoginView: View {
     @EnvironmentObject private var appState: AppState
     @State private var email = "operator@viewra.local"
     @State private var password = "ViewraOperator123!"
+    @State private var server = APIClient.defaultBaseURL.absoluteString
     @FocusState private var focused: Field?
-    enum Field { case email, password }
+    enum Field { case server, email, password }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -27,6 +28,7 @@ struct LoginView: View {
             .padding(.horizontal, 28)
             Spacer(minLength: 36)
             VStack(spacing: 14) {
+                field(title: "Server", text: $server, field: .server, secure: false)
                 field(title: "Email", text: $email, field: .email, secure: false)
                 field(title: "Password", text: $password, field: .password, secure: true)
                 if let error = appState.lastError {
@@ -34,7 +36,7 @@ struct LoginView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Button {
-                    Task { await appState.login(email: email, password: password) }
+                    Task { await appState.login(email: email, password: password, serverURL: server) }
                 } label: {
                     HStack {
                         if appState.isBusy { ProgressView().tint(ViewraTheme.bg) }
@@ -42,7 +44,7 @@ struct LoginView: View {
                     }
                 }
                 .buttonStyle(OperatorButtonStyle())
-                .disabled(appState.isBusy || email.isEmpty || password.isEmpty)
+                .disabled(appState.isBusy || server.isEmpty || email.isEmpty || password.isEmpty)
                 .padding(.top, 8)
             }
             .padding(28)

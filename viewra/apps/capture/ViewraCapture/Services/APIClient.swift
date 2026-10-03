@@ -5,12 +5,23 @@ enum APIError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL: return "Invalid API URL"
-        case .http(let code, let body): return "HTTP \(code): \(body)"
+        case .http(let code, let body): return "HTTP \(code): \(Self.readableMessage(from: body))"
         case .decoding(let err): return "Decode error: \(err.localizedDescription)"
         case .unauthorized: return "Unauthorized"
         case .noSession: return "Not signed in"
         case .message(let msg): return msg
         }
+    }
+
+    /// Turns the API's `{ message, details: [{ path, message }] }` error body into one line.
+    private static func readableMessage(from body: String) -> String {
+        struct Detail: Decodable { var path: String?; var message: String }
+        struct ErrorBody: Decodable { var message: String?; var details: [Detail]? }
+        guard let data = body.data(using: .utf8), let parsed = try? JSONDecoder().decode(ErrorBody.self, from: data) else { return body }
+        if let details = parsed.details, !details.isEmpty {
+            return details.map { [$0.path, $0.message].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: ": ") }.joined(separator: "; ")
+        }
+        return parsed.message ?? body
     }
 }
 
@@ -32,10 +43,29 @@ struct APIRoom: Codable, Hashable, Identifiable {
 
 struct APINode: Codable, Hashable, Identifiable {
     var id: String; var propertyId: String; var roomId: String; var label: String; var sequence: Int; var status: String
+    var skippedDirections: [String]?
+}
+
+struct APIPhoto: Codable, Hashable, Identifiable {
+    var id: String; var direction: String; var processingStatus: String
+}
+
+struct APIGraphNode: Codable, Hashable, Identifiable {
+    var id: String; var roomId: String; var label: String; var sequence: Int; var status: String
+    var skippedDirections: [String]?
+    var photos: [APIPhoto]
+}
+
+struct APIGraph: Codable {
+    var nodes: [APIGraphNode]; var connections: [APIConnection]
 }
 
 struct APIConnection: Codable, Hashable, Identifiable {
     var id: String; var propertyId: String; var fromNodeId: String; var toNodeId: String; var direction: String; var label: String?
+}
+
+struct CreateConnectionResponse: Codable {
+    var connection: APIConnection; var reverse: APIConnection?
 }
 
 struct PresignResponse: Codable {
@@ -51,12 +81,30 @@ struct AnyEncodable: Encodable {
 }
 
 final class APIClient: @unchecked Sendable {
-    static let defaultBaseURL = URL(string: "http://localhost:3001")!
-    private let baseURL: URL
+    private static let baseURLKey = "viewra.apiBaseURL"
+    /// Simulator shares the Mac's network, so localhost works there; a device needs the Mac's LAN address.
+    static var defaultBaseURL: URL {
+        if let saved = UserDefaults.standard.string(forKey: baseURLKey), let url = URL(string: saved) { return url }
+        #if targetEnvironment(simulator)
+        return URL(string: "http://localhost:3001")!
+        #else
+        return URL(string: "http://192.168.32.199:3001")!
+        #endif
+    }
+    private(set) var baseURL: URL
     private let session: URLSession
     private let defaults = UserDefaults.standard
     private let accessKey = "viewra.accessToken"
     private let refreshKey = "viewra.refreshToken"
+
+    func updateBaseURL(_ string: String) throws {
+        var trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        while trimmed.hasSuffix("/") { trimmed.removeLast() }
+        if !trimmed.contains("://") { trimmed = "http://" + trimmed }
+        guard let url = URL(string: trimmed), url.host != nil else { throw APIError.invalidURL }
+        baseURL = url
+        defaults.set(url.absoluteString, forKey: Self.baseURLKey)
+    }
     private let encoder: JSONEncoder = { let e = JSONEncoder(); e.dateEncodingStrategy = .iso8601; return e }()
     private let decoder: JSONDecoder = { let d = JSONDecoder(); d.dateDecodingStrategy = .iso8601; return d }()
 
@@ -104,6 +152,21 @@ final class APIClient: @unchecked Sendable {
         return page.items
     }
 
+    func createPreviewLink(propertyId: String) async throws -> URL {
+        struct PreviewLink: Codable { var url: String }
+        let link: PreviewLink = try await request(method: "POST", path: "/api/properties/\(propertyId)/preview-link", body: Optional<String>.none, authed: true)
+        guard let url = URL(string: link.url) else { throw APIError.invalidURL }
+        return url
+    }
+
+    func getGraph(propertyId: String) async throws -> APIGraph {
+        try await request(method: "GET", path: "/api/properties/\(propertyId)/graph", body: Optional<String>.none, authed: true)
+    }
+
+    func updateSkippedDirections(nodeId: String, directions: [String]) async throws {
+        let _: APINode = try await request(method: "PATCH", path: "/api/nodes/\(nodeId)", body: ["skippedDirections": directions], authed: true)
+    }
+
     func createNode(propertyId: String, roomId: String, label: String, connectFromNodeId: String?, connectionDirection: String?) async throws -> APINode {
         var body: [String: AnyEncodable] = ["roomId": AnyEncodable(roomId), "label": AnyEncodable(label)]
         if let connectFromNodeId { body["connectFromNodeId"] = AnyEncodable(connectFromNodeId) }
@@ -111,7 +174,7 @@ final class APIClient: @unchecked Sendable {
         return try await request(method: "POST", path: "/api/properties/\(propertyId)/nodes", body: body, authed: true)
     }
 
-    func createConnection(propertyId: String, fromNodeId: String, toNodeId: String, direction: String, bidirectional: Bool = false) async throws -> APIConnection {
+    func createConnection(propertyId: String, fromNodeId: String, toNodeId: String, direction: String, bidirectional: Bool = false) async throws -> CreateConnectionResponse {
         let body: [String: AnyEncodable] = [
             "propertyId": AnyEncodable(propertyId),
             "fromNodeId": AnyEncodable(fromNodeId),
@@ -143,13 +206,34 @@ final class APIClient: @unchecked Sendable {
         }
     }
 
-    func completePhotoUpload(photoId: String) async throws -> [String: String] {
-        struct Empty: Codable {}
-        let _: Empty? = try? await request(method: "POST", path: "/api/photos/\(photoId)/complete-upload", body: ["photoId": photoId], authed: true)
-        return ["photoId": photoId]
+    func completePhotoUpload(photoId: String) async throws {
+        struct Ack: Codable { var id: String }
+        let _: Ack = try await request(method: "POST", path: "/api/photos/\(photoId)/complete-upload", body: ["photoId": photoId], authed: true)
     }
 
-    private func request<Body: Encodable, Response: Decodable>(method: String, path: String, body: Body?, authed: Bool) async throws -> Response {
+    /// Refresh tokens are single-use on the server, so concurrent 401s must share one refresh call.
+    private actor RefreshCoordinator {
+        private var inFlight: Task<Void, Error>?
+        func run(_ operation: @escaping @Sendable () async throws -> Void) async throws {
+            if let inFlight { return try await inFlight.value }
+            let task = Task { try await operation() }
+            inFlight = task
+            defer { inFlight = nil }
+            try await task.value
+        }
+    }
+    private let refreshCoordinator = RefreshCoordinator()
+
+    private func refreshAccessToken() async throws {
+        try await refreshCoordinator.run { [self] in
+            guard let token = refreshToken else { throw APIError.noSession }
+            let session: AuthSession = try await request(method: "POST", path: "/api/auth/refresh", body: ["refreshToken": token], authed: false, allowRefresh: false)
+            accessToken = session.accessToken
+            refreshToken = session.refreshToken
+        }
+    }
+
+    private func request<Body: Encodable, Response: Decodable>(method: String, path: String, body: Body?, authed: Bool, allowRefresh: Bool = true) async throws -> Response {
         guard let url = URL(string: path, relativeTo: baseURL) else { throw APIError.invalidURL }
         var req = URLRequest(url: url)
         req.httpMethod = method
@@ -164,7 +248,14 @@ final class APIClient: @unchecked Sendable {
         }
         let (data, response) = try await session.data(for: req)
         guard let http = response as? HTTPURLResponse else { throw APIError.message("No HTTP response") }
-        if http.statusCode == 401 { throw APIError.unauthorized }
+        if http.statusCode == 401 {
+            if authed && allowRefresh && refreshToken != nil {
+                do { try await refreshAccessToken() } catch { throw APIError.unauthorized }
+                return try await request(method: method, path: path, body: body, authed: authed, allowRefresh: false)
+            }
+            if !authed { throw APIError.message(APIError.http(401, String(data: data, encoding: .utf8) ?? "").errorDescription ?? "Unauthorized") }
+            throw APIError.unauthorized
+        }
         guard (200..<300).contains(http.statusCode) else {
             throw APIError.http(http.statusCode, String(data: data, encoding: .utf8) ?? "")
         }

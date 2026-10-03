@@ -91,14 +91,28 @@ public struct Node: Codable, Identifiable, Sendable, Hashable {
     public var id: String; public var propertyId: String; public var roomId: String; public var label: String
     public var sequence: Int; public var approximatePosition: Position; public var captureMetadata: CaptureMetadata?
     public var status: NodeStatus; public var completedPhotos: Set<PhotoDirection>
+    /// Directions intentionally not photographed (e.g. facing a wall).
+    public var skippedDirections: Set<PhotoDirection>
     public var createdAt: Date; public var updatedAt: Date
-    public init(id: String = UUID().uuidString, propertyId: String, roomId: String, label: String, sequence: Int = 0, approximatePosition: Position = Position(), captureMetadata: CaptureMetadata? = nil, status: NodeStatus = .draft, completedPhotos: Set<PhotoDirection> = [], createdAt: Date = Date(), updatedAt: Date = Date()) {
+    public init(id: String = UUID().uuidString, propertyId: String, roomId: String, label: String, sequence: Int = 0, approximatePosition: Position = Position(), captureMetadata: CaptureMetadata? = nil, status: NodeStatus = .draft, completedPhotos: Set<PhotoDirection> = [], skippedDirections: Set<PhotoDirection> = [], createdAt: Date = Date(), updatedAt: Date = Date()) {
         self.id = id; self.propertyId = propertyId; self.roomId = roomId; self.label = label; self.sequence = sequence
         self.approximatePosition = approximatePosition; self.captureMetadata = captureMetadata; self.status = status
-        self.completedPhotos = completedPhotos; self.createdAt = createdAt; self.updatedAt = updatedAt
+        self.completedPhotos = completedPhotos; self.skippedDirections = skippedDirections
+        self.createdAt = createdAt; self.updatedAt = updatedAt
     }
-    public var isPhotoComplete: Bool { PhotoDirection.required.allSatisfy { completedPhotos.contains($0) } }
-    public var photoCompletionProgress: Double { Double(completedPhotos.count) / Double(PhotoDirection.required.count) }
+    /// Every direction is captured or skipped, and at least one photo exists.
+    public var isPhotoComplete: Bool { PhotoDirection.isComplete(captured: completedPhotos, skipped: skippedDirections) }
+    public var photoCompletionProgress: Double { PhotoDirection.progress(captured: completedPhotos, skipped: skippedDirections) }
+}
+
+extension PhotoDirection {
+    public static func isComplete(captured: Set<PhotoDirection>, skipped: Set<PhotoDirection>) -> Bool {
+        !captured.isEmpty && required.allSatisfy { captured.contains($0) || skipped.contains($0) }
+    }
+
+    public static func progress(captured: Set<PhotoDirection>, skipped: Set<PhotoDirection>) -> Double {
+        Double(captured.union(skipped).intersection(required).count) / Double(required.count)
+    }
 }
 
 public struct Connection: Codable, Identifiable, Sendable, Hashable {

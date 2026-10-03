@@ -100,12 +100,15 @@ public struct CaptureValidator: Sendable {
     public func validate(
         nodeId: String,
         completedPhotos: Set<PhotoDirection>,
+        skippedDirections: Set<PhotoDirection> = [],
         qualitySamples: [PhotoQualitySample] = [],
         overriddenWarningIds: Set<String> = []
     ) -> CaptureValidationResult {
         var issues: [ValidationIssue] = []
         let required = Set(PhotoDirection.required)
-        let missing = required.subtracting(completedPhotos)
+        var missing = required.subtracting(completedPhotos).subtracting(skippedDirections)
+        // Skips are only valid alongside at least one real photo.
+        if completedPhotos.intersection(required).isEmpty { missing = required }
 
         for direction in PhotoDirection.required where missing.contains(direction) {
             issues.append(

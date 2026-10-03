@@ -241,9 +241,29 @@ public final class OfflineUploadQueue: @unchecked Sendable {
             return
         }
         let data = try storage.read(from: manifestPath)
-        let decoded = try decoder.decode([UploadQueueItem].self, from: data)
+        var decoded = try decoder.decode([UploadQueueItem].self, from: data)
+        // An item still marked uploading was interrupted (app killed mid-request).
+        for idx in decoded.indices where decoded[idx].status == .uploading {
+            decoded[idx].status = .pending
+        }
         lock.lock()
         items = decoded
         lock.unlock()
+    }
+
+    /// Gives items that exhausted their automatic retries a fresh set of attempts (manual retry).
+    public func resetExhausted(now: Date = Date()) {
+        lock.lock()
+        var changed = false
+        for idx in items.indices
+        where items[idx].status == .failed && !retryPolicy.shouldRetry(attempt: items[idx].attemptCount) {
+            items[idx].attemptCount = 0
+            items[idx].nextRetryAt = nil
+            items[idx].status = .pending
+            items[idx].updatedAt = now
+            changed = true
+        }
+        lock.unlock()
+        if changed { try? persist() }
     }
 }

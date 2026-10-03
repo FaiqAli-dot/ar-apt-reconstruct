@@ -14,6 +14,14 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+/** Accounts created by `pnpm seed`. Only exposed in dev builds. */
+const DEMO_ACCOUNTS = import.meta.env.DEV
+  ? [
+      { role: "Super admin", email: "admin@viewra.local", password: "ViewraAdmin123!" },
+      { role: "Capture operator", email: "operator@viewra.local", password: "ViewraOperator123!" },
+    ]
+  : [];
+
 export function LoginPage() {
   const { login, user, loading } = useAuth();
   const navigate = useNavigate();
@@ -22,11 +30,20 @@ export function LoginPage() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: {
+      email: DEMO_ACCOUNTS[0]?.email ?? "",
+      password: DEMO_ACCOUNTS[0]?.password ?? "",
+    },
   });
+
+  const fillDemoAccount = (account: (typeof DEMO_ACCOUNTS)[number]) => {
+    setValue("email", account.email, { shouldValidate: true });
+    setValue("password", account.password, { shouldValidate: true });
+  };
 
   if (!loading && user) {
     return <Navigate to="/" replace />;
@@ -120,6 +137,30 @@ export function LoginPage() {
           >
             {isSubmitting ? "Signing in…" : "Sign in"}
           </button>
+
+          {DEMO_ACCOUNTS.length > 0 ? (
+            <div className="mt-6 rounded-2xl border border-line bg-cream-soft/60 p-4">
+              <p className="label">Demo accounts</p>
+              <div className="mt-2 grid gap-2">
+                {DEMO_ACCOUNTS.map((account) => (
+                  <button
+                    key={account.email}
+                    type="button"
+                    onClick={() => fillDemoAccount(account)}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-line bg-cream px-3 py-2 text-left text-sm transition hover:border-ink/30"
+                  >
+                    <span>
+                      <span className="block font-semibold">{account.role}</span>
+                      <span className="block text-xs text-ink-muted">
+                        {account.email} · {account.password}
+                      </span>
+                    </span>
+                    <span className="text-xs font-semibold text-ink-muted">Use</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </form>
       </div>
     </div>

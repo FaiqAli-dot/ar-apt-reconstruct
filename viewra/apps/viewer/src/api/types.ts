@@ -47,6 +47,8 @@ export type TourProperty = {
   id: string;
   title: string;
   publicId: string;
+  /** True when served through a signed preview link (may be unpublished). */
+  preview?: boolean;
   description?: string;
   address?: {
     line1?: string;

@@ -95,6 +95,7 @@ export const nodeSchema = z.object({
   approximatePosition: positionSchema.default({ x: 0, y: 0 }),
   captureMetadata: captureMetadataSchema.optional(),
   status: nodeStatusSchema,
+  skippedDirections: z.array(photoDirectionSchema).optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

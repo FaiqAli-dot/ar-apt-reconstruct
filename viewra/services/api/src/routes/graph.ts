@@ -10,6 +10,7 @@ import {
   publishProperty,
 } from "../services/publishing.js";
 import { requireRoles } from "../middleware/authorize.js";
+import type { PreviewTokenPayload } from "../plugins/auth.js";
 
 export async function graphRoutes(app: FastifyInstance) {
   app.get(
@@ -22,6 +23,28 @@ export async function graphRoutes(app: FastifyInstance) {
 
       const graph = await buildAdminGraphResponse(property._id.toString());
       return graph;
+    },
+  );
+
+  app.post(
+    "/api/properties/:id/preview-link",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const property = await findOrgProperty(request.authUser, id, reply);
+      if (!property) return;
+
+      const expiresInSeconds = 2 * 60 * 60;
+      const token = app.jwt.sign(
+        { propertyId: property._id.toString(), type: "preview" } satisfies PreviewTokenPayload,
+        { expiresIn: expiresInSeconds },
+      );
+      const viewerUrl = app.appConfig.publicViewerUrl.replace(/\/$/, "");
+      return {
+        token,
+        url: `${viewerUrl}/preview/${token}`,
+        expiresAt: new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
+      };
     },
   );
 

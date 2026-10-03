@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { fetchPublicTour } from "../api/client";
+import { useParams, useSearchParams } from "react-router-dom";
+import { fetchPreviewTour, fetchPublicTour } from "../api/client";
 import type { PublicTour, TourApiError } from "../api/types";
 import { ErrorPage } from "../components/ErrorPage";
 import { LoadingScreen } from "../components/LoadingScreen";
@@ -11,15 +11,18 @@ type LoadState =
   | { status: "ready"; tour: PublicTour }
   | { status: "error"; error: TourApiError };
 
-export function TourPage() {
-  const { publicId = "" } = useParams<{ publicId: string }>();
+export function TourPage({ mode = "public" }: { mode?: "public" | "preview" }) {
+  const { publicId = "", token = "" } = useParams<{ publicId: string; token: string }>();
+  const [searchParams] = useSearchParams();
+  const startNodeId = searchParams.get("node") ?? undefined;
   const [state, setState] = useState<LoadState>({ status: "loading" });
+  const isPreview = mode === "preview";
 
   useEffect(() => {
     let cancelled = false;
     setState({ status: "loading" });
 
-    fetchPublicTour(publicId)
+    (isPreview ? fetchPreviewTour(token) : fetchPublicTour(publicId))
       .then((tour) => {
         if (!cancelled) setState({ status: "ready", tour });
       })
@@ -38,7 +41,7 @@ export function TourPage() {
     return () => {
       cancelled = true;
     };
-  }, [publicId]);
+  }, [isPreview, publicId, token]);
 
   if (state.status === "loading") {
     return <LoadingScreen />;
@@ -48,5 +51,10 @@ export function TourPage() {
     return <ErrorPage status={state.error.status} message={state.error.message} />;
   }
 
-  return <TourViewer tour={state.tour} publicId={publicId} />;
+  // Previews pass no publicId so analytics stay off.
+  return isPreview ? (
+    <TourViewer tour={state.tour} preview startNodeId={startNodeId} />
+  ) : (
+    <TourViewer tour={state.tour} publicId={publicId} startNodeId={startNodeId} />
+  );
 }

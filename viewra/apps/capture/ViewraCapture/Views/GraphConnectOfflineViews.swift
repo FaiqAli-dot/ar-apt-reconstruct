@@ -24,7 +24,9 @@ struct CaptureGraphView: View {
                     Button {
                         _ = try? appState.graphService?.returnToNode(id: node.id)
                         appState.sessionState?.currentNodeId = node.id
-                        appState.sessionState?.currentNodeCompletedPhotos = node.completedPhotos
+                        // Photo progress is tracked on the session copy, not the graph store.
+                        appState.sessionState?.currentNodeCompletedPhotos =
+                            appState.sessionState?.nodes.first(where: { $0.id == node.id })?.completedPhotos ?? []
                         if !appState.navigationPath.isEmpty { appState.navigationPath.removeLast() }
                     } label: {
                         HStack {
@@ -110,6 +112,8 @@ struct ConnectExistingNodeView: View {
 
     @State private var allRooms: [APIRoom] = []
     @State private var remoteNodes: [APINode] = []
+    @State private var isConnecting = false
+    @State private var errorMessage: String?
 
     private var localNodes: [Node] {
         appState.graphService?.store.nodes.filter { $0.id != fromNodeId } ?? []
@@ -117,6 +121,10 @@ struct ConnectExistingNodeView: View {
 
     var body: some View {
         List {
+            if let errorMessage {
+                Text(errorMessage).font(.footnote).foregroundStyle(ViewraTheme.danger)
+                    .listRowBackground(ViewraTheme.surface)
+            }
             Section("Current room — \(room.name)") {
                 ForEach(localNodes) { node in
                     Button { connect(to: node.id) } label: {
@@ -130,7 +138,8 @@ struct ConnectExistingNodeView: View {
                 }
             }
             if !remoteNodes.isEmpty {
-                let byRoom = Dictionary(grouping: remoteNodes.filter { $0.id != fromNodeId }) { $0.roomId }
+                let localIds = Set(localNodes.map(\.id))
+                let byRoom = Dictionary(grouping: remoteNodes.filter { $0.id != fromNodeId && !localIds.contains($0.id) }) { $0.roomId }
                 ForEach(allRooms, id: \.id) { rm in
                     if let nodes = byRoom[rm.id], !nodes.isEmpty {
                         Section(rm.name) {
@@ -166,26 +175,29 @@ struct ConnectExistingNodeView: View {
     }
 
     private func connect(to toNodeId: String) {
-        do {
-            if appState.graphService?.store.containsNode(id: toNodeId) == true {
-                _ = try appState.graphService?.connectExistingNode(to: toNodeId, from: fromNodeId, direction: .custom)
-                appState.sessionState?.connections = appState.graphService?.store.connections ?? []
-            }
-            Task {
-                _ = try? await appState.api.createConnection(
-                    propertyId: property.id, fromNodeId: fromNodeId, toNodeId: toNodeId, direction: "CUSTOM"
+        guard !isConnecting else { return }
+        isConnecting = true
+        Task {
+            defer { isConnecting = false }
+            do {
+                _ = try await appState.api.createConnection(
+                    propertyId: property.id, fromNodeId: fromNodeId, toNodeId: toNodeId, direction: ConnectionDirection.custom.rawValue
                 )
+                if appState.graphService?.store.containsNode(id: toNodeId) == true {
+                    _ = try? appState.graphService?.connectExistingNode(to: toNodeId, from: fromNodeId, direction: .custom)
+                    appState.sessionState?.connections = appState.graphService?.store.connections ?? []
+                }
+                if !appState.navigationPath.isEmpty { appState.navigationPath.removeLast() }
+            } catch {
+                errorMessage = error.localizedDescription
+                appState.lastError = error.localizedDescription
             }
-            if !appState.navigationPath.isEmpty { appState.navigationPath.removeLast() }
-        } catch {
-            appState.lastError = error.localizedDescription
         }
     }
 }
 
 struct OfflineQueueBanner: View {
     @EnvironmentObject private var appState: AppState
-    @State private var tick = 0
 
     private var pending: Int { appState.uploadQueue.pendingCount }
     private var failed: Int { appState.uploadQueue.failedCount }
@@ -202,14 +214,13 @@ struct OfflineQueueBanner: View {
                     ProgressView(value: progress).tint(ViewraTheme.accent)
                 }
                 Button("Retry") {
-                    Task { _ = try? await appState.uploadQueue.processDue(); tick += 1 }
+                    Task { await appState.retryUploads() }
                 }
                 .font(.caption.weight(.bold)).foregroundStyle(ViewraTheme.accent)
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .padding(.horizontal, 12)
-            .id(tick)
         }
     }
 }

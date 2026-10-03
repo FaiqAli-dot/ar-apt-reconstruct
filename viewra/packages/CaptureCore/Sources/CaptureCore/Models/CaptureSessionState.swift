@@ -37,24 +37,47 @@ public struct CaptureSessionState: Codable, Sendable {
         return nodes.first { $0.id == currentNodeId }
     }
 
-    /// 0...1 progress of required photos on the current node.
+    /// Directions skipped on the current node.
+    public var currentNodeSkippedDirections: Set<PhotoDirection> {
+        currentNode?.skippedDirections ?? []
+    }
+
+    /// 0...1 progress of required photos (captured or skipped) on the current node.
     public var photoCompletionProgress: Double {
-        Double(currentNodeCompletedPhotos.count) / Double(PhotoDirection.required.count)
+        PhotoDirection.progress(captured: currentNodeCompletedPhotos, skipped: currentNodeSkippedDirections)
     }
 
     public var isCurrentNodeComplete: Bool {
-        PhotoDirection.required.allSatisfy { currentNodeCompletedPhotos.contains($0) }
+        PhotoDirection.isComplete(captured: currentNodeCompletedPhotos, skipped: currentNodeSkippedDirections)
     }
 
     public mutating func markPhotoComplete(_ direction: PhotoDirection) {
         currentNodeCompletedPhotos.insert(direction)
+        updateCurrentNode { node in
+            node.completedPhotos.insert(direction)
+            node.skippedDirections.remove(direction)
+        }
+    }
+
+    /// Marks a direction as intentionally not photographed. Returns false if it would leave the node with no photos.
+    @discardableResult
+    public mutating func markDirectionSkipped(_ direction: PhotoDirection) -> Bool {
+        guard let node = currentNode, !node.completedPhotos.contains(direction) else { return false }
+        let skippedAfter = node.skippedDirections.union([direction])
+        let remaining = Set(PhotoDirection.required).subtracting(skippedAfter).subtracting(node.completedPhotos)
+        if node.completedPhotos.isEmpty && remaining.isEmpty { return false }
+        updateCurrentNode { $0.skippedDirections.insert(direction) }
+        return true
+    }
+
+    public mutating func unskipDirection(_ direction: PhotoDirection) {
+        updateCurrentNode { $0.skippedDirections.remove(direction) }
+    }
+
+    private mutating func updateCurrentNode(_ change: (inout Node) -> Void) {
         if let idx = nodes.firstIndex(where: { $0.id == currentNodeId }) {
-            nodes[idx].completedPhotos.insert(direction)
-            if nodes[idx].isPhotoComplete {
-                nodes[idx].status = .complete
-            } else {
-                nodes[idx].status = .capturing
-            }
+            change(&nodes[idx])
+            nodes[idx].status = nodes[idx].isPhotoComplete ? .complete : .capturing
             nodes[idx].updatedAt = Date()
         }
         updatedAt = Date()

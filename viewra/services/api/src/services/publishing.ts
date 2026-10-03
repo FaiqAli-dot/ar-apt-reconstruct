@@ -68,7 +68,20 @@ export async function buildPublicTour(
     };
   }
 
-  const graph = await loadPropertyGraph(property._id.toString());
+  return buildTourResponse(property._id.toString(), storage, { preview: false });
+}
+
+/** Same payload as the public tour, for any status — used by signed preview links. */
+export async function buildPreviewTour(propertyId: string, storage: StorageService) {
+  return buildTourResponse(propertyId, storage, { preview: true });
+}
+
+async function buildTourResponse(
+  propertyId: string,
+  storage: StorageService,
+  options: { preview: boolean },
+) {
+  const graph = await loadPropertyGraph(propertyId);
   if (!graph) {
     return { status: 404 as const, body: { message: "Tour not found" } };
   }
@@ -83,8 +96,11 @@ export async function buildPublicTour(
 
   const nodes = await Promise.all(
     graph.nodes.map(async (node) => {
-      const sourcePhotos = (photosByNode.get(node.id) ?? []).filter(
-        (p) => p.direction === "CENTER" || p.processingStatus === "READY",
+      // Previews also show photos still being processed (served from the original upload).
+      const sourcePhotos = (photosByNode.get(node.id) ?? []).filter((p) =>
+        options.preview
+          ? p.processingStatus !== "PENDING_UPLOAD"
+          : p.direction === "CENTER" || p.processingStatus === "READY",
       );
       const photos = await Promise.all(
         sourcePhotos.map(async (p) => ({
@@ -123,6 +139,7 @@ export async function buildPublicTour(
         address: graph.property.address,
         status: graph.property.status,
         publishedAt: graph.property.publishedAt,
+        preview: options.preview,
       },
       rooms: graph.rooms.map((r) => ({
         id: r.id,

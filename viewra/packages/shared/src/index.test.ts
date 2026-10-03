@@ -138,6 +138,43 @@ describe("graph validation", () => {
       true,
     );
   });
+
+  it("accepts intentionally skipped directions but requires one photo", () => {
+    const rooms: Room[] = [
+      {
+        id: "r1",
+        propertyId: "p1",
+        name: "Hall",
+        type: "HALLWAY",
+        order: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+    const skippedRight = { ...node("n1", "r1", "Node 1"), skippedDirections: ["RIGHT" as const] };
+    const ok = validatePropertyGraph({
+      property: baseProperty(),
+      rooms,
+      nodes: [skippedRight],
+      connections: [],
+      photos: [photo("n1", "LEFT"), photo("n1", "CENTER")],
+    });
+    expect(ok.issues.filter((i) => i.code === "MISSING_PHOTO")).toEqual([]);
+
+    const allSkipped = {
+      ...node("n1", "r1", "Node 1"),
+      skippedDirections: ["LEFT" as const, "CENTER" as const, "RIGHT" as const],
+    };
+    const empty = validatePropertyGraph({
+      property: baseProperty(),
+      rooms,
+      nodes: [allSkipped],
+      connections: [],
+      photos: [],
+    });
+    expect(empty.ready).toBe(false);
+    expect(empty.issues.some((i) => i.code === "MISSING_PHOTO")).toBe(true);
+  });
 });
 
 describe("helpers", () => {

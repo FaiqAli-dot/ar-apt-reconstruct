@@ -45,5 +45,8 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         NSCameraUsageDescription: Viewra Capture needs camera access to photograph walkthrough nodes (LEFT, CENTER, RIGHT).
         UIRequiresFullScreen: true
+        NSLocalNetworkUsageDescription: Viewra Capture connects to your Viewra server on the local network to sign in and upload photos.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
         UIStatusBarStyle: UIStatusBarStyleLightContent
         UIUserInterfaceStyle: Dark

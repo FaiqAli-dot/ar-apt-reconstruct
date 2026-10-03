@@ -2,12 +2,37 @@ import type { FastifyInstance } from "fastify";
 import { analyticsTrackSchema, PropertyStatus } from "@viewra/types";
 import { PropertyModel } from "../models/Property.js";
 import { NodeModel } from "../models/Node.js";
-import { buildPublicTour } from "../services/publishing.js";
+import { buildPreviewTour, buildPublicTour } from "../services/publishing.js";
+import type { PreviewTokenPayload } from "../plugins/auth.js";
 import { trackAnalyticsEvent } from "../services/analytics.js";
 import { loadPropertyGraph } from "../services/graph.js";
 import { validateBody, isMongoId } from "../utils/validation.js";
 
 export async function tourRoutes(app: FastifyInstance) {
+  // Token goes in the query string: signed tokens exceed Fastify's 100-char path param limit.
+  app.get("/api/tours/preview", async (request, reply) => {
+    const { token = "" } = request.query as { token?: string };
+    let payload: PreviewTokenPayload;
+    try {
+      payload = app.jwt.verify<PreviewTokenPayload>(token);
+    } catch {
+      return reply.status(401).send({
+        statusCode: 401,
+        error: "Unauthorized",
+        message: "This preview link is invalid or has expired",
+      });
+    }
+    if (payload.type !== "preview" || !isMongoId(payload.propertyId)) {
+      return reply.status(401).send({
+        statusCode: 401,
+        error: "Unauthorized",
+        message: "This preview link is invalid or has expired",
+      });
+    }
+    const result = await buildPreviewTour(payload.propertyId, app.storage);
+    return reply.status(result.status).send(result.body);
+  });
+
   app.get("/api/tours/:publicId", async (request, reply) => {
     const { publicId } = request.params as { publicId: string };
     const result = await buildPublicTour(publicId, app.storage);

@@ -140,6 +140,9 @@ export async function nodeRoutes(app: FastifyInstance) {
         result.node.approximatePosition = body.approximatePosition;
       }
       if (body.status !== undefined) result.node.status = body.status;
+      if (body.skippedDirections !== undefined) {
+        result.node.skippedDirections = [...new Set(body.skippedDirections)];
+      }
       if (body.captureMetadata !== undefined) {
         result.node.captureMetadata = {
           ...result.node.captureMetadata,
